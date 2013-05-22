@@ -1,0 +1,8 @@
+
+    <menu xmlns:android="http://schemas.android.com/apk/res/android">
+        
+        <item android:id="@+id/search" android:title="@string/search"></item>
+        <item android:id="@+id/childs" android:title="@string/youth"></item><item android:id="@+id/version" android:title="@string/version"></item>
+        <item android:id="@+id/stats" android:title="@string/stats"></item>
+        <item android:id="@+id/structure" android:title="@string/structure"></item>
+    </menu>

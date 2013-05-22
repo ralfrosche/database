@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="xLarge">12px</dimen>
+    <dimen name="pad1">5px</dimen>
+    <dimen name="xxLarge">14px</dimen>
+</resources>
