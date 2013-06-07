@@ -294,7 +294,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		return number_array;
 
 	}
-	
+
 	public String[] ReadAverageAlterFromDB() {
 
 		ArrayList temp_array = new ArrayList();
@@ -310,8 +310,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			if (c.moveToFirst()) {
 				do {
 					temp_array.add(c.getString(c.getColumnIndex("average_age"))
-							+ " Jahre"
-				);
+							+ " Jahre");
 
 				} while (c.moveToNext());
 			}

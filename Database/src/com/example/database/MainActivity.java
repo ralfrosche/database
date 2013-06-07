@@ -1,8 +1,15 @@
 package com.example.database;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 import android.app.Activity;
@@ -16,16 +23,24 @@ import android.content.ContentProviderOperation;
 import android.content.Intent;
 import android.content.OperationApplicationException;
 
+import android.database.Cursor;
 import android.database.SQLException;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Matrix;
 
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.RemoteException;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds;
 import android.provider.ContactsContract.CommonDataKinds.Email;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.provider.ContactsContract.CommonDataKinds.StructuredName;
+import android.provider.MediaStore;
 
 import android.provider.ContactsContract.RawContacts;
 import android.util.Log;
@@ -36,6 +51,7 @@ import android.view.View;
 
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 
 import android.widget.ImageButton;
 import android.widget.Spinner;
@@ -50,10 +66,16 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 	String[] DataToDB;
 	String[] result_array;
 	String Selecteditem;
+	String SelectedPosition;
+	String SelectedID = "0";
 	public String filter = "";
+	ImageView imageViewList;
 	boolean searchInvolved = false;
 	private MenuItem mMenuItemSearch;
 	private MenuItem mMenuItemYouth;
+	static final int DATE_DIALOG_ID = 0;
+	private static final int SELECT_PICTURE = 1;
+	String image_path = "";
 
 	public final Pattern EMAIL_ADDRESS_PATTERN = Pattern
 			.compile("[a-zA-Z0-9\\+\\.\\_\\%\\-\\+]{1,256}" + "\\@"
@@ -67,8 +89,117 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 
 		initCustomListSpinner(filter, false);
 		// setDefaultKeyMode(DEFAULT_KEYS_SEARCH_LOCAL);
-
 		handleIntent(getIntent());
+		imageViewList = (ImageView) findViewById(R.id.imageViewList);
+
+		imageViewList.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View arg0) {
+				Intent intent = new Intent();
+				intent.setType("image/*");
+				intent.setAction(Intent.ACTION_GET_CONTENT);
+				startActivityForResult(
+						Intent.createChooser(intent, "Select Picture"),
+						SELECT_PICTURE);
+
+			}
+		});
+
+	}
+
+	@Override
+	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+		if (resultCode == Activity.RESULT_OK) {
+			Bitmap newImage = null;
+			Bitmap resizedBitmap = null;
+			SimpleDateFormat dateFormat = new SimpleDateFormat(
+					"ddMMyyyyHHmmss", Locale.GERMAN);
+
+			// image_path = "mitglieder_liste/" + dateFormat.format(new Date())
+			// + ".jpg";
+			image_path = "mitglieder_liste/" + SelectedID + ".jpg";
+
+			Log.e("MLISTE", "+++ readDataID:" + SelectedID);
+
+			File sdCard = Environment.getExternalStorageDirectory();
+			File dir = new File(sdCard.getAbsolutePath() + "/mitglieder_liste");
+			dir.mkdir();
+
+			if (requestCode == SELECT_PICTURE) {
+
+				int or = 0;
+				Uri selectedImageUri = data.getData();
+				try {
+					newImage = decodeUri(selectedImageUri);
+
+					Cursor cursor = getContentResolver()
+							.query(selectedImageUri,
+									new String[] { MediaStore.Images.ImageColumns.ORIENTATION },
+									null, null, null);
+
+					if (cursor.getCount() != 1) {
+						or = 0;
+					} else {
+
+						cursor.moveToFirst();
+
+						or = cursor.getInt(0);
+
+						Log.e("MLISTE", "+++ orientation:" + or);
+					}
+
+					int width = newImage.getWidth();
+					int height = newImage.getHeight();
+					Matrix matrix = new Matrix();
+					if (or > 0)
+						matrix.postRotate(or);
+					resizedBitmap = Bitmap.createBitmap(newImage, 0, 0, width,
+							height, matrix, true);
+					saveBitmap(resizedBitmap, image_path);
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+				imageViewList = (ImageView) findViewById(R.id.imageViewList);
+				imageViewList.setImageBitmap(resizedBitmap);
+			}
+
+		}
+
+	}
+
+	private void saveBitmap(Bitmap newImage, String image_path) {
+		imageViewList = (ImageView) findViewById(R.id.imageViewList);
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		newImage.compress(Bitmap.CompressFormat.JPEG, 40, bytes);
+
+		File f = new File(Environment.getExternalStorageDirectory()
+				+ File.separator + image_path);
+		FileOutputStream fo = null;
+		try {
+			f.createNewFile();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		// write the bytes in file
+
+		try {
+			fo = new FileOutputStream(f);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try {
+			fo.write(bytes.toByteArray());
+			fo.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		// remember close de FileOutput
 
 	}
 
@@ -276,14 +407,12 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			stat += "Fördermitglieder: " + DataToDB[4] + "\n";
 			stat += "ruhende Mitglieder: " + DataToDB[5] + "\n";
 			stat += "Austritte Ende 2013: " + DataToDB[6] + "\n";
-			
+
 			DataToDB = myDbHelper.ReadAverageAlterFromDB();
-			
+
 			stat += "Durchschnitssalter: " + DataToDB[0] + "\n\n";
-			
+
 			myDbHelper.close();
-			
-			
 
 		} catch (IOException ioe) {
 
@@ -319,8 +448,10 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 	public void onItemSelected(AdapterView<?> parent, View view, int pos,
 			long id) {
 		Selecteditem = customListSpinner.getSelectedItem().toString();
-		View lview = (View) findViewById(R.layout.main);
-		RunDatabse(lview);
+		SelectedPosition = String.valueOf(customListSpinner
+				.getSelectedItemPosition());
+
+		RunDatabase();
 	}
 
 	public void onNothingSelected(AdapterView<?> parent) {
@@ -330,7 +461,7 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		return EMAIL_ADDRESS_PATTERN.matcher(email).matches();
 	}
 
-	public void RunDatabse(View view) {
+	public void RunDatabase() {
 		DatabaseHelper myDbHelper = new DatabaseHelper(this);
 
 		try {
@@ -363,9 +494,28 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			smobil.setText(DataToDB[6]);
 			semail.setText(DataToDB[7]);
 			snummer.setText(DataToDB[8]);
+			SelectedID = DataToDB[8];
 			sstatus.setText(DataToDB[9]);
 
 			myDbHelper.close();
+
+			image_path = "mitglieder_liste/" + SelectedID + ".jpg";
+			imageViewList = (ImageView) findViewById(R.id.imageViewList);
+			Log.e("MListe", "- image:" + image_path);
+			if (!image_path.equals("")) {
+				Uri mUri;
+
+				File sdCard = Environment.getExternalStorageDirectory();
+				String f = sdCard.getAbsolutePath() + "/" + image_path;
+				File filecheck = new File(f);
+				if (filecheck.exists()) {
+					mUri = Uri.parse(f);
+					imageViewList.setImageURI(mUri);
+				} else {
+					imageViewList.setImageResource(R.drawable.noimageavailable);
+				}
+
+			}
 
 			sphoneButton.setOnClickListener(new View.OnClickListener() {
 
@@ -562,6 +712,29 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			throw sqle;
 
 		}
+	}
+
+	private Bitmap decodeUri(Uri selectedImage) throws FileNotFoundException {
+		BitmapFactory.Options o = new BitmapFactory.Options();
+		o.inJustDecodeBounds = true;
+		BitmapFactory.decodeStream(
+				getContentResolver().openInputStream(selectedImage), null, o);
+		final int REQUIRED_SIZE = 300;
+		int width_tmp = o.outWidth, height_tmp = o.outHeight;
+		int scale = 1;
+		while (true) {
+			if (width_tmp / 2 < REQUIRED_SIZE || height_tmp / 2 < REQUIRED_SIZE) {
+				break;
+			}
+			width_tmp /= 2;
+			height_tmp /= 2;
+			scale *= 2;
+		}
+		BitmapFactory.Options o2 = new BitmapFactory.Options();
+		o2.inSampleSize = scale;
+		return BitmapFactory.decodeStream(
+				getContentResolver().openInputStream(selectedImage), null, o2);
+
 	}
 
 }
