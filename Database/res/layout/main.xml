@@ -115,9 +115,9 @@
             </TableRow>
 <View android:layout_width="fill_parent" android:layout_height="1dip" android:background="#FF00" />
             
-            <TableRow android:id="@+id/tableRow10" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="fill_horizontal" android:paddingTop="@dimen/xxLarge">
+            <TableRow android:id="@+id/tableRow13" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="fill_horizontal" android:paddingTop="@dimen/xxLarge">
 
-                <TextView android:id="@+id/textView10" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Status:" android:textAppearance="?android:attr/textAppearanceLarge" android:textStyle="bold" />
+                <TextView android:id="@+id/textView11" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Status:" android:textAppearance="?android:attr/textAppearanceLarge" android:textStyle="bold" />
 
                 <TextView android:id="@+id/status" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="Status" android:textAppearance="?android:attr/textAppearanceLarge" />
             </TableRow>
