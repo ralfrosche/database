@@ -33,13 +33,19 @@ import org.w3c.dom.*;
 
 public class SepaDirectDebitFile {
 
-	public static final String INITIAL_STRING = "<?xml version='1.0' encoding='utf-8'?><Document xmlns='urn:iso:std:iso:20022:tech:xsd:pain.008.001.02' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'></Document>";
+	//public static final String INITIAL_STRING = "<?xml version='1.0' encoding='utf-8'?><Document xmlns='urn:iso:std:iso:20022:tech:xsd:pain.008.001.02' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'></Document>";
+	
+	// public static final String INITIAL_STRING = "<?xml version='1.0' encoding=\"utf-8\"?><Document xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xsi:schemaLocation=\"urn:iso:std:iso:20022:tech:xsd:pain.008.003.02 pain.008.003.02.xsd\" xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.008.003.02\"></Document>";
+	
+	
+	public static final String INITIAL_STRING  ="<?xml version=\"1.0\" encoding=\"utf-8\"?><Document xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xsi:schemaLocation=\"urn:iso:std:iso:20022:tech:xsd:pain.008.003.02 pain.008.003.02.xsd\" xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.008.003.02\"></Document>";
+
 	private Document xml;
 	private DatabaseHelper myDbHelper = null;
 
 	@SuppressLint("NewApi")
 	public SepaDirectDebitFile(Integer numberOfTransactions, Context context,
-			Integer run) {
+			Integer run, Float sum, int deltaDate, String sepatype) {
 		myDbHelper = new DatabaseHelper(context);
 		try {
 			xml = loadXMLFromString(INITIAL_STRING);
@@ -49,42 +55,59 @@ public class SepaDirectDebitFile {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("ddMMyyyyHHmmss",
 				Locale.GERMANY);
 		SimpleDateFormat dateCFormat = new SimpleDateFormat(
-				"yyyy-MM-dd\tHH:mm:ss", Locale.GERMANY);
+				"yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.GERMANY);
 		SimpleDateFormat dateRFormat = new SimpleDateFormat("yyyy-MM-dd",
 				Locale.GERMANY);
 		SimpleDateFormat dateKFormat = new SimpleDateFormat("yyyy_MM",
 				Locale.GERMANY);
 		Calendar calendar = new GregorianCalendar();
 		calendar.setTime(new Date());
-		calendar.add(Calendar.DATE, 3);
+		calendar.add(Calendar.DATE, deltaDate);
 
-		calendar.getTime();
+		//calendar.getTime();
 		Map<String, String> prefs = myDbHelper.getPreferncies();
 
 		Element documentElement = xml.getDocumentElement();
 		Element CstmrDrctDbtInitn = xml.createElement("CstmrDrctDbtInitn");
 		Element GrpHdr = xml.createElement("GrpHdr");
 		Element MsgId = xml.createElement("MsgId");
-		MsgId.setTextContent(dateFormat.format(new Date()));
+
+		String msgid = dateFormat.format(new Date());
+		MsgId.setTextContent("ACHH"+msgid);
 		Element CreDtTm = xml.createElement("CreDtTm");
-		CreDtTm.setTextContent(dateCFormat.format(new Date()));
-		Element NbOfTxs = xml.createElement("NbOfTxs");
-		NbOfTxs.setTextContent(String.valueOf(numberOfTransactions));
+		CreDtTm.setTextContent(dateCFormat.format(calendar.getTime()));
+		Element NbOfTxs1 = xml.createElement("NbOfTxs");
+		NbOfTxs1.setTextContent(String.valueOf(numberOfTransactions));
+		
+		Element CtrlSum1 = xml.createElement("CtrlSum");
+		CtrlSum1.setTextContent(String.format("%.2f", sum).replaceAll(",", "."));
+		
+		
 		Element InitgPty = xml.createElement("InitgPty");
 		Element Nm = xml.createElement("Nm");
 		Nm.setTextContent(prefs.get("name"));
 		InitgPty.appendChild(Nm);
 		GrpHdr.appendChild(MsgId);
 		GrpHdr.appendChild(CreDtTm);
-		GrpHdr.appendChild(NbOfTxs);
+		GrpHdr.appendChild(NbOfTxs1);
+		GrpHdr.appendChild(CtrlSum1);
 		GrpHdr.appendChild(InitgPty);
 
 		Element PmtInf = xml.createElement("PmtInf");
 		Element PmtInfId = xml.createElement("PmtInfId");
-		PmtInfId.setTextContent(dateKFormat.format(new Date()) + "_"
-				+ String.valueOf(run));
+		PmtInfId.setTextContent(msgid);
 		Element PmtMtd = xml.createElement("PmtMtd");
 		PmtMtd.setTextContent("DD");
+		Element BtchBookg = xml.createElement("BtchBookg");
+		BtchBookg.setTextContent("true");
+		
+		Element NbOfTxs2 = xml.createElement("NbOfTxs");
+		Element CtrlSum2 = xml.createElement("CtrlSum");
+		CtrlSum2.setTextContent(String.format("%.2f", sum).replaceAll(",", "."));
+		NbOfTxs2.setTextContent(String.valueOf(numberOfTransactions));
+
+		
+		
 		Element PmtTpInf = xml.createElement("PmtTpInf");
 		Element SvcLvl = xml.createElement("SvcLvl");
 		Element Cd = xml.createElement("Cd");
@@ -99,7 +122,7 @@ public class SepaDirectDebitFile {
 		PmtTpInf.appendChild(LclInstrm);
 
 		Element SeqTp = xml.createElement("SeqTp");
-		SeqTp.setTextContent("OOFF");
+		SeqTp.setTextContent(sepatype);
 		PmtTpInf.appendChild(SeqTp);
 
 		Element ReqdColltnDt = xml.createElement("ReqdColltnDt");
@@ -142,6 +165,9 @@ public class SepaDirectDebitFile {
 
 		PmtInf.appendChild(PmtInfId);
 		PmtInf.appendChild(PmtMtd);
+		PmtInf.appendChild(BtchBookg);
+		PmtInf.appendChild(NbOfTxs2);
+		PmtInf.appendChild(CtrlSum2);
 		PmtInf.appendChild(PmtTpInf);
 		PmtInf.appendChild(ReqdColltnDt);
 		PmtInf.appendChild(Cdtr);
@@ -157,7 +183,7 @@ public class SepaDirectDebitFile {
 		xml.replaceChild(documentElement, documentElement);
 
 		File sdCard = Environment.getExternalStorageDirectory();
-		File dir = new File(sdCard.getAbsolutePath() + "/dtaus/");
+		File dir = new File(sdCard.getAbsolutePath() + "/mliste/sepa/");
 		dir.mkdir();
 
 		File xmlFile = new File(dir, "SEPA_" + String.valueOf(run) + ".xml");

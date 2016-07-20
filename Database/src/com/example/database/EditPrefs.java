@@ -14,6 +14,7 @@ import android.app.Activity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 
@@ -25,6 +26,8 @@ public class EditPrefs extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_edit_prefs);
+		getWindow().setSoftInputMode(
+			    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
 		Map<String, String> prefs = new HashMap<String, String>();
 
 		Class<id> clazz = R.id.class;
@@ -73,7 +76,7 @@ public class EditPrefs extends Activity {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		// Log.e("mliste", "" + prefs);
+
 
 		Button cancelButton = (Button) findViewById(R.id.cancelbutton);
 		Button saveButton = (Button) findViewById(R.id.savebutton);
@@ -107,6 +110,7 @@ public class EditPrefs extends Activity {
 					Field f;
 					try {
 						String key = header.get(i).toString();
+
 						if (!key.equals("id")) {
 							f = clazz.getField(key);
 							int id = 0;
@@ -121,8 +125,6 @@ public class EditPrefs extends Activity {
 							}
 							EditText tv = (EditText) findViewById(id);
 							String value = tv.getText().toString();
-							// Log.e("mliste", header.get(i).toString()+": "+
-							// value);
 							update.put(key, value);
 
 						}

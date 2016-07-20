@@ -21,8 +21,22 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:layout_weight="0.06"
         android:prompt="@string/spinner_prompt"
         tools:listitem="@android:layout/simple_spinner_item" />
+
+    <EditText
+        android:id="@+id/searchField"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:hint="Suchen"
+		android:drawableStart="@android:drawable/ic_menu_search"
+		android:drawableLeft="@android:drawable/ic_menu_search"
+        android:inputType="textAutoComplete" >
+
+        <requestFocus />
+    </EditText>
 
     <ScrollView
         android:id="@+id/scrollView2"

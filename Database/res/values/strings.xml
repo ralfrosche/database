@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Mitgliederliste Aeroclub Hamburg e.V. V1.5</string>
-    <string name="hello_world">Hello world!</string>
+    <string name="app_name">Mitgliederliste Aeroclub Hamburg e.V. V1.7</string>
     <string name="menu_settings">Settings</string>
 
     <item name="databaseVersion" format="integer" type="string">1</item>

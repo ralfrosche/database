@@ -7,17 +7,29 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Map;
 
 import java.util.List;
 
 import java.util.regex.Pattern;
 
+import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.net.ftp.FTPFile;
+import org.apache.commons.net.ftp.FTPReply;
+import org.apache.commons.net.io.CopyStreamAdapter;
+
+import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.AlertDialog;
+import android.app.DatePickerDialog;
+import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.app.SearchManager;
 import android.app.SearchManager.OnCancelListener;
@@ -27,11 +39,14 @@ import android.content.ContentProviderOperation;
 
 import android.content.Context;
 import android.content.DialogInterface;
+
 import android.content.Intent;
 import android.content.OperationApplicationException;
 
 import android.database.Cursor;
 import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
@@ -51,6 +66,9 @@ import android.provider.ContactsContract.CommonDataKinds.StructuredName;
 import android.provider.MediaStore;
 
 import android.provider.ContactsContract.RawContacts;
+import android.provider.MediaStore.MediaColumns;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -60,6 +78,7 @@ import android.view.View;
 
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
 
@@ -71,7 +90,7 @@ import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.Toast;
 
 public class MainActivity extends Activity implements OnItemSelectedListener {
-
+	private static final int REQUEST_PICK_DB = 666;
 	private Spinner customListSpinner;
 	public static boolean is_admin = false;
 	public static final int TYP_LASTSCHRIFTEN = 0;
@@ -97,8 +116,20 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 	private MenuItem mMenuItemEditOptions;
 	private MenuItem mMenuItemimportDB;
 	private MenuItem  mMenuItemresetwork;
+	private MenuItem  mMenuItemresetyear;
+	private MenuItem  mMenuItemEmail;
+	private MenuItem  mMenuItemAddress;
+	private MenuItem  mMenuItemrestoreDB;
+	private MenuItem  mMenuItemold;
+	private MenuItem  mMenuItemenhanced;
+	private MenuItem  mMenuItemenexecuteSQL;
+	
+	private MenuItem  mMenuItemsetAbbuchung;
+	private MenuItem  mMenuItemresetAbbuchung;
+	private MenuItem  mMenuItemupdate;
 	private Integer SelectedPositionAtStartup = 0;
 	static final int DATE_DIALOG_ID = 0;
+	public String searchPattern = "";
 	private DatabaseHelper myDbHelper = new DatabaseHelper(this);
 	private static final int SELECT_PICTURE = 1;
 	String image_path = "";
@@ -223,6 +254,26 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 						SELECT_PICTURE);
 			}
 		});
+		final TextView searchField = (TextView) findViewById(R.id.searchField);
+		searchField.addTextChangedListener(new TextWatcher() {
+
+		    @Override
+		    public void onTextChanged(CharSequence cs, int arg1, int arg2, int arg3) {
+		        if(cs.toString().length() == 0) {
+		        	//searchField.setText(" ");
+		        }
+		        	
+		        searchPattern = cs.toString();
+		        initCustomListSpinner(searchPattern, false);
+		    }
+
+		    @Override
+		    public void beforeTextChanged(CharSequence arg0, int arg1, int arg2, int arg3) { }
+
+		    @Override
+		    public void afterTextChanged(Editable arg0) { }
+
+		});
 
 	}
 
@@ -269,8 +320,7 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 							height, matrix, true);
 					saveBitmap(resizedBitmap, image_path);
 				} catch (FileNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+										e.printStackTrace();
 				}
 
 				imageViewList = (ImageView) findViewById(R.id.imageViewList);
@@ -278,7 +328,39 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			}
 
 		}
+		if (requestCode == REQUEST_PICK_DB) {
+			if (resultCode == -1) {
+				Uri imageUri = data.getData();
+				String path = getPath(imageUri);
+				try {
+					myDbHelper.copyDataBase(path);
+					restart(getBaseContext(),2000);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		
+		}
 
+	}
+	public String getPath(Uri uri) {
+		String selectedImagePath;
+		String[] projection = { MediaColumns.DATA };
+		Cursor cursor = getContentResolver().query(uri, projection, null, null,
+				null);
+		if (cursor != null) {
+			int column_index = cursor.getColumnIndexOrThrow(MediaColumns.DATA);
+			cursor.moveToFirst();
+			selectedImagePath = cursor.getString(column_index);
+		} else {
+			selectedImagePath = null;
+		}
+
+		if (selectedImagePath == null) {
+			selectedImagePath = uri.getPath();
+		}
+		return selectedImagePath;
 	}
 
 	private void saveBitmap(Bitmap newImage, String image_path) {
@@ -292,26 +374,21 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		try {
 			f.createNewFile();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+				e.printStackTrace();
 		}
 		// write the bytes in file
 
 		try {
 			fo = new FileOutputStream(f);
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		try {
 			fo.write(bytes.toByteArray());
 			fo.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
-		// remember close de FileOutput
 
 	}
 
@@ -336,8 +413,6 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			@Override
 			public void onCancel() {
 
-				// Log.e("MListe", "- Cancel-");
-
 			}
 		});
 
@@ -360,11 +435,9 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 	}
 
 	private void doMySearch(String query) {
-		// TODO Auto-generated method stub
 		filter = query;
+		Log.w("filter",""+ filter);
 		initCustomListSpinner(query, false);
-
-		// Log.e("MListe", "- Query:-" + query);
 	}
 
 	@Override
@@ -377,14 +450,12 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		try {
 			fos = openFileOutput(FILENAME, Context.MODE_PRIVATE);
 		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 		try {
 			fos.write(string.getBytes());
 			fos.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		DatabaseHelper myDbHelper = new DatabaseHelper(this);
@@ -435,6 +506,51 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		customListSpinner.setAdapter(adapter);
 		customListSpinner.setOnItemSelectedListener(this);
 	}
+	
+	public void initCustomListSpinnerSpecialFilter(String filter, boolean youth) {
+
+		customListSpinner = (Spinner) findViewById(R.id.custom_list_spinner);
+		List<CharSequence> choices = new ArrayList<CharSequence>();
+
+		DatabaseHelper myDbHelper = new DatabaseHelper(this);
+		try {
+
+			myDbHelper.createDataBase();
+			int dlength = 0; 
+			if (startup == false) {
+				DataToDB = myDbHelper.ReadNRFromDBFilter(filter, youth);
+				if (DataToDB.length == 0) {
+					Toast.makeText(getBaseContext(),"Keine Daten gefunden", Toast.LENGTH_SHORT) .show();
+					
+				}
+				dlength = 99;
+			} 
+			while (dlength == 0) {
+				DataToDB = myDbHelper.ReadNRFromDBFilter(filter, youth);
+				dlength = DataToDB.length;
+				startup = false;
+			}
+
+			for (int i = 0; i < DataToDB.length; i++) {
+				choices.add(DataToDB[i]);
+			}
+
+			myDbHelper.close();
+
+		} catch (IOException ioe) {
+
+			throw new Error("Unable to create database");
+
+		}
+
+		ArrayAdapter<CharSequence> adapter = new ArrayAdapter<CharSequence>(
+				this, android.R.layout.simple_spinner_item, choices);
+
+		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+		customListSpinner.setAdapter(adapter);
+		customListSpinner.setOnItemSelectedListener(this);
+	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -449,8 +565,19 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		mMenuItemMakeDtaus = menu.getItem(10);
 		mMenuItemMakeDtaus2 = menu.getItem(11);
 		mMenuItemEditOptions = menu.getItem(12);
-		mMenuItemresetwork = menu.getItem(13);
-		mMenuItemimportDB = menu.getItem(14);
+		mMenuItemEmail= menu.getItem(13);
+		mMenuItemAddress= menu.getItem(14);
+		mMenuItemresetwork = menu.getItem(15);
+		mMenuItemresetyear = menu.getItem(16);
+		mMenuItemimportDB = menu.getItem(17);
+		mMenuItemenexecuteSQL = menu.getItem(19);
+		mMenuItemrestoreDB = menu.getItem(20);
+		mMenuItemold = menu.getItem(21);
+		mMenuItemsetAbbuchung = menu.getItem(22);
+		mMenuItemresetAbbuchung = menu.getItem(23);
+		mMenuItemupdate = menu.getItem(25);
+		mMenuItemenhanced = menu.getItem(5);
+		
 		if (is_admin == true) {
 			mMenuItemAddMember.setVisible(true);
 			mMenuItemExportDB.setVisible(true);
@@ -461,6 +588,16 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			mMenuItemEditOptions.setVisible(true);
 			mMenuItemimportDB.setVisible(true);
 			mMenuItemresetwork.setVisible(true);
+			mMenuItemresetyear.setVisible(true);
+			mMenuItemAddress.setVisible(true);
+			mMenuItemEmail.setVisible(true);
+			mMenuItemenexecuteSQL.setVisible(true);
+			mMenuItemrestoreDB.setVisible(true);
+			mMenuItemold.setVisible(true);
+			mMenuItemsetAbbuchung.setVisible(true);
+			mMenuItemresetAbbuchung.setVisible(true);
+			mMenuItemupdate.setVisible(true);
+			mMenuItemenhanced.setVisible(false);
 		}
 
 		// Log.e("MListe", "- OPtions menu created -");
@@ -499,9 +636,20 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		case R.id.importDB:
 			doimportDB(this);
 			return true;
-
 		case R.id.stats:
 			doStats();
+			return true;
+		case R.id.restoreDB:
+			doRestore();
+			return true;
+		case R.id.menu_help:
+			launchHelp();
+			return true;
+		case R.id.emailList:
+			exportEmailist();
+			return true;
+		case R.id.addressList:
+			exportAddresslist();
 			return true;
 		case R.id.makedtaus:
 			doDtaus(1);
@@ -521,10 +669,15 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		case R.id.resetwork:
 			resetwork();
 			return true;
+		case R.id.resetyear:
+			resetyear();
+			return true;
 		case R.id.exportExcel:
 			exportDataBase();
 			return true;
-
+		case R.id.executeSQL:
+			inputSQL();
+			return true;
 		case R.id.editOpt:
 			EditPrefs();
 			return true;
@@ -541,6 +694,33 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 				initCustomListSpinner(filter, true);
 			}
 			return true;
+		case R.id.old:
+			filter = "";
+
+			searchS = (String) mMenuItemold.getTitle();
+			if (searchS.equals("Alle")) {
+				mMenuItemold.setTitle("show 'ausgetreten'");
+				initCustomListSpinner(filter, false);
+
+			} else {
+				mMenuItemold.setTitle("Alle");
+				initCustomListSpinnerSpecialFilter(filter, true);
+			}
+			return true;
+		case R.id.resetAbbuchung:
+			resetAbbuchung();
+			return true;
+		case R.id.setAbbuchung:
+			setAbbuchung();
+			return true;
+		case R.id.OnlineUpdate:
+			OnlineUpdate();
+			return true;
+		case R.id.OnlineUpload:
+			OnlineUpload();
+			return true;
+		
+		//OnlineUpdate
 		}
 
 		return false;
@@ -550,21 +730,433 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		Intent intent = new Intent(this, EditPrefs.class);
 		startActivity(intent);
 	}
+	
+	private void launchHelp() {
+		Intent intent = new Intent(this, help.class);
+		startActivity(intent);
+	}
+	
 	private void doimportDB(Context context) {
 		
 
 		try {
 			myDbHelper.createDataBase();
-			boolean backupSuccess = myDbHelper.importDataBaseComplete(context);
+			myDbHelper.importDataBaseComplete(context);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
 	}
-	private void doDtaus(final Integer run) {
 
+	private void doDtaus( final int run) {
+		final Calendar myCalendar = Calendar.getInstance();
+		 
+		DatePickerDialog.OnDateSetListener date = new DatePickerDialog.OnDateSetListener() {
+
+		    @Override
+		    public void onDateSet(DatePicker view, int year, int monthOfYear,
+		            int dayOfMonth) {
+		        myCalendar.set(Calendar.YEAR, year);
+		        myCalendar.set(Calendar.MONTH, monthOfYear);
+		        myCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+		        int intervall  = 8;
+		        Calendar myCalendar2 = Calendar.getInstance();
+		        long diff = myCalendar.getTimeInMillis() - myCalendar2.getTimeInMillis();
+		        float dayCount = (float) diff / (24 * 60 * 60 * 1000);
+		        intervall= (int)dayCount+1;
+		        if (intervall < 7) {
+		        	intervall = 7;
+		        }
+		  
+		    	if (view.isShown()) {
+		    		SelectType(run, intervall);
+		        }
+		    	
+		    };
+		 
+		};
+		
+		new DatePickerDialog(MainActivity.this, date, myCalendar
+                  .get(Calendar.YEAR), myCalendar.get(Calendar.MONTH),
+                  myCalendar.get(Calendar.DAY_OF_MONTH)).show();
+		
+		
+	}
+	String Exception = "";
+	public void doRestore() {
 		boolean backupSuccess = false;
+		try {
+			myDbHelper.createDataBase();
+			backupSuccess = myDbHelper.backupDataBase();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		if (backupSuccess) {
+			Toast.makeText(getBaseContext(), "Backup db successful!",
+					Toast.LENGTH_SHORT).show();
+			doDbRestore();
+		} else {
+			Toast.makeText(getBaseContext(), "ERROR:Backup failed",
+					Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	public void doDbRestore() {
+
+		Intent intent = new Intent();
+		intent.setAction(Intent.ACTION_GET_CONTENT);
+		intent.setType("file/*");
+		intent.putExtra("return-data", true);
+		startActivityForResult(
+				Intent.createChooser(intent, "Complete action using"),
+				REQUEST_PICK_DB);
+
+		return;
+	}
+	
+	public Handler progressHandler = null;
+	
+	@SuppressLint("HandlerLeak")
+	public  void doOnlineUpload(final String file)
+	{
+		
+		final ProgressDialog dialog;
+		File sdCard = Environment.getExternalStorageDirectory();
+		int len = (int) new File(sdCard.getAbsolutePath() + "/mliste/"+ file).length();
+		dialog = new ProgressDialog(this);
+		dialog.setCancelable(false);
+		dialog.setMessage("Upload Database...");
+		dialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+		dialog.setProgress(0);
+		dialog.show();
+		dialog.setMax(len);
+		
+		progressHandler = new Handler() {
+			public void handleMessage(Message msg) {
+				dialog.incrementProgressBy(msg.what);
+			}	
+		};
+		
+		(new Thread(new Runnable() {
+	        @Override
+	        public  void run() {
+	        	Map<String, String> prefs = myDbHelper.getPreferncies();
+	    		String host = prefs.get("update_server");
+	    		String username = prefs.get("update_user");
+	    		String password = prefs.get("update_password");
+	      		int port = 21;
+	      		
+	       		
+	       		try {
+	       			FTPClient ftp = new FTPClient();
+	       			ftp.connect(host, port);
+	       			if(!ftp.login(username, password))
+	       			{
+	       				ftp.logout();
+	       				showToast("Error getting login!");
+	       			
+	                   } else {
+	                   		ftp.sendNoOp();
+	                   		int reply = ftp.getReplyCode();
+	                   		if (!FTPReply.isPositiveCompletion(reply))
+	                   		{
+	                   			ftp.disconnect();
+	                   			showToast("Error getting connection!");
+	                   		} else {
+	                   			
+	                   			ftp.setFileType(ftp.BINARY_FILE_TYPE, ftp.BINARY_FILE_TYPE);
+	                   			ftp.setFileTransferMode(ftp.BINARY_FILE_TYPE);
+	                   			File sdCard = Environment.getExternalStorageDirectory();
+	                            FileInputStream in = new FileInputStream(new File(sdCard.getAbsolutePath() + "/mliste/"+ file));
+	                            ftp.setCopyStreamListener(copyStreamAdapter_Upload);
+	                        
+	                            boolean result = ftp.storeFile("/online_update_database", in);
+	                            
+	                            in.close();
+	                   			ftp.logout();
+	                   			ftp.disconnect();
+		                   		if (result == true) {
+	                            	// showToast("online File upload successful!");
+	                            	 
+	                             } else {
+	                            	 showToast("online File upload failed!!");
+	                             }
+		                   		dialog.dismiss();
+
+		                   		
+		                   		
+	                       }
+	                   	
+	                   }
+	       			}
+                     catch (Exception ex)
+                     {
+                         ex.printStackTrace();
+                     }
+	        }
+		})).start();
+	}
+
+  CopyStreamAdapter copyStreamAdapter_Upload = new CopyStreamAdapter() {
+        @Override
+        public void bytesTransferred(long totalBytesTransferred, int bytesTransferred, long streamSize) {
+            progressHandler.sendMessage(progressHandler.obtainMessage(bytesTransferred));
+        }
+    };
+    CopyStreamAdapter copyStreamAdapter_Download = new CopyStreamAdapter() {
+        @Override
+        public void bytesTransferred(long totalBytesTransferred, int bytesTransferred, long streamSize) {
+        	progressHandler.sendMessage(progressHandler.obtainMessage(bytesTransferred));
+        }
+    };
+	@SuppressLint("HandlerLeak")
+	public void doOnlineUpdade() {
+				
+		final ProgressDialog dialog;
+		dialog = new ProgressDialog(this);
+		dialog.setCancelable(false);
+		dialog.setMessage("Download Database...");
+		dialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+		dialog.setProgress(0);
+		dialog.show();
+
+
+		progressHandler = new Handler() {
+			@SuppressLint("HandlerLeak")
+			public void handleMessage(Message msg) {
+				dialog.incrementProgressBy(msg.what);
+			}	
+		};
+		
+		
+		
+		
+		
+		
+		
+		 (new Thread(new Runnable() {
+
+             @Override
+             public  void run() {
+            	 Map<String, String> prefs = myDbHelper.getPreferncies();
+ 	    		String host = prefs.get("update_server");
+ 	    		String username = prefs.get("update_user");
+ 	    		String password = prefs.get("update_password");
+            		int port = 21;
+            		
+            		try {
+            			FTPClient ftp = new FTPClient();
+            			ftp.connect(host, port);
+            			if(!ftp.login(username, password))
+            			{
+            				ftp.logout();
+            				showToast("Error getting login!");
+            			
+                        } else {
+                        	ftp.sendNoOp();
+                            int reply = ftp.getReplyCode();
+
+                            if (!FTPReply.isPositiveCompletion(reply))
+                            {
+                            	showToast("Error getting connection!");
+                            	ftp.disconnect();
+                          
+                            } else {
+                            	FileOutputStream videoOut;
+                            	
+                            	File sdcard = Environment.getExternalStorageDirectory();
+                                File targetFile = new File(sdcard.getAbsolutePath()+"/mliste/online_update_database");
+                            	 ftp.setFileType(ftp.BINARY_FILE_TYPE, ftp.BINARY_FILE_TYPE);
+                                 ftp.setFileTransferMode(ftp.BINARY_FILE_TYPE);
+                                 targetFile.createNewFile();
+                                 videoOut = new FileOutputStream(targetFile);
+                              
+                                 FTPFile file = ftp.mlistFile("/" + "online_update_database");
+                                 long size = file.getSize();
+                                 dialog.setMax((int) size);
+
+                      
+                                 ftp.setCopyStreamListener(copyStreamAdapter_Download);
+                                 boolean result = ftp.retrieveFile("/" + "online_update_database", videoOut);                                
+                                 ftp.logout();
+                                 ftp.disconnect();
+                                 videoOut.close();
+                                 
+                                 if (result == true) {
+                                	 showToast("online File retrieved, restoring DB!");
+                                     try {
+                      					 myDbHelper.copyDataBase(sdcard.getAbsolutePath()+"/mliste/online_update_database");
+                      					 restart(getBaseContext(),2000);
+                      				} catch (IOException e) {
+                      					// TODO Auto-generated catch block
+                      					e.printStackTrace();
+                      				}
+                                 } else {
+                                	 showToast("Error retrieving file, abort!");
+                                 }
+                         		dialog.dismiss();
+                             
+
+                             
+                            }
+                        	
+                        }
+         			}
+                          catch (Exception ex)
+                          {
+                              ex.printStackTrace();
+                           
+                          }
+
+             }
+         })).start();
+		
+
+	
+		}
+	public void showToast(final String toast)
+	{
+	    runOnUiThread(new Runnable() {
+	        public void run()
+	        {
+	            Toast.makeText(MainActivity.this, toast, Toast.LENGTH_SHORT).show();
+	        }
+	    });
+	}
+		
+			
+			
+	
+			
+			
+			
+			
+	
+			
+		
+		
+		
+	
+	
+	
+	public String getPath2(Uri uri) {
+		String selectedImagePath;
+		String[] projection = { MediaStore.Images.Media.DATA };
+		Cursor cursor = getContentResolver().query(uri, projection, null, null,
+				null);
+		if (cursor != null) {
+			int column_index = cursor
+					.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+			cursor.moveToFirst();
+			selectedImagePath = cursor.getString(column_index);
+		} else {
+			selectedImagePath = null;
+		}
+
+		if (selectedImagePath == null) {
+			selectedImagePath = uri.getPath();
+		}
+		return selectedImagePath;
+	}
+	
+
+	
+	private void inputSQL() {
+		Exception = "";
+		final EditText txtUrl = new EditText(this);
+
+		txtUrl.setHint("UPDATE mitglieder set Nachname ='' WHERE mitgliedsnummer = '403'");
+		 
+		new AlertDialog.Builder(this)
+		.setTitle("Special database treatment")
+		.setMessage("Enter SQL Statement")
+		.setView(txtUrl)
+		.setPositiveButton("Excecute", new DialogInterface.OnClickListener() {
+		public void onClick(DialogInterface dialog, int whichButton) {
+		String url = txtUrl.getText().toString();
+		
+		String sqlQuery = url;
+	
+		try {
+			myDbHelper.createDataBase();
+		}
+		 catch (IOException e) {
+				e.printStackTrace();
+		}
+		try {
+			
+			SQLiteDatabase db = myDbHelper.getWritableDatabase();
+			try {
+				Log.e("sqlQuery", sqlQuery);
+				db.execSQL(sqlQuery);
+			
+			} catch (SQLiteException e) {
+				Exception = ""+e;
+				dialog.dismiss();
+				testwindow();
+			}
+			db.close();
+		} catch (SQLiteException e) {
+		}
+		}
+		})
+		.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+		public void onClick(DialogInterface dialog, int whichButton) {
+			dialog.cancel();
+		}
+		})
+		.show();
+	}
+	
+	private void testwindow(){
+		Log.e("Exception", Exception);
+		if (!Exception.equals("")) {
+			new AlertDialog.Builder(this)
+	        .setMessage("SQLError: "+Exception)
+	        .setCancelable(true)
+	        .setPositiveButton("OK",
+	                new DialogInterface.OnClickListener() {
+	            public void onClick(DialogInterface dialog, int id) {
+	                dialog.cancel();
+	            }
+	        }).show();
+		}
+	}
+	private void SelectType(final int run, final int intervall) {
+	CharSequence sepaType[] = new CharSequence[] {"einmalig", "erste", "folgende", "letzte"};
+	
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle("SEPA Type");
+		builder.setCancelable(true);
+		builder.setItems(sepaType, new DialogInterface.OnClickListener() {
+		    @Override
+		    public void onClick(DialogInterface dialog, int which) {
+		    	String sepatype = "OOFF"; 
+		    	switch(which) {
+		    	case 0: sepatype = "OOFF";
+		    		break;
+		    	case 1: sepatype = "FRST";
+	    			break;
+		    	case 2: sepatype = "RCUR";
+	    			break;
+		    	case 3: sepatype = "FNAL";
+	    			break;
+		    	default: 
+	    			sepatype = "OOFF";
+		    	}
+		    	dialog.cancel();
+		    	writeDtaus(run, intervall, sepatype);
+		    	return;
+		   
+		    	}
+		});
+		builder.show();
+	}
+	
+	@SuppressLint("HandlerLeak")
+	private void writeDtaus(final int run, final int intervall, final String sepatype) {
+
 		final ProgressDialog dialog;
 		final Integer increment = 20;
 
@@ -577,14 +1169,14 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		dialog.setProgress(0);
 		dialog.setMax(100);
 		dialog.show();
+		
 		final Handler progressHandler = new Handler() {
 			public void handleMessage(Message msg) {
-				
 				dialog.incrementProgressBy(increment);
 				if (dialog.getProgress() >= 60) 
 					dialog.setMessage("Erzeuge SEPA_XML-Datei...");
 				if (dialog.getProgress() == 40) 
-					dialog.setMessage("Erzeuge DTAUS-Datei...");
+					dialog.setMessage("Erzeuge SEPA Daten...");
 			}
 		};
 		// create a thread for updating the progress bar
@@ -596,40 +1188,35 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 						progressHandler.sendMessage(progressHandler
 								.obtainMessage());
 						myDbHelper.createDataBase();
-						boolean backupSuccess = myDbHelper.prepareDatabase(run);
+						myDbHelper.prepareDatabase(run);
 						
 						progressHandler.sendMessage(progressHandler
 								.obtainMessage());
+						
 						try {
 							num = myDbHelper.writeDtaus(run);
 						} catch (Exception e) {
-							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
+						
+						Float sum = 0.0f;
+						sum = myDbHelper.getSum();
 						progressHandler.sendMessage(progressHandler
 								.obtainMessage());
-						SepaDirectDebitFile test = new SepaDirectDebitFile(num,
-								getBaseContext(), run);
+						new SepaDirectDebitFile(num,
+								getBaseContext(), run, sum, intervall, sepatype);
 						progressHandler.sendMessage(progressHandler
 								.obtainMessage());
 						Thread.sleep(500);
 						dialog.dismiss();
 
 					} catch (IOException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 
-					// enter the code to be run while displaying the
-					// progressbar.
-					//
-					// This example is just going to increment the progress bar:
-					// So keep running until the progress value reaches maximum
-					// value
 					while (dialog.getProgress() <= dialog.getMax()) {
 						// wait 500ms between each update
 						Thread.sleep(500);
-
 						// active the update handler
 						progressHandler.sendMessage(progressHandler
 								.obtainMessage());
@@ -641,28 +1228,6 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		});
 
 		background.start();
-		/*
-		 * try { myDbHelper.createDataBase(); Toast.makeText(getBaseContext(),
-		 * "Bereite Datenbank vor", Toast.LENGTH_LONG).show(); backupSuccess =
-		 * myDbHelper.prepareDatabase(run); try {
-		 * Toast.makeText(getBaseContext(), "Schreibe Dtaus Datei...",
-		 * Toast.LENGTH_LONG).show(); Integer num = myDbHelper.writeDtaus(run);
-		 * if (num != null) { backupSuccess = true; } //sepa file
-		 * Toast.makeText(getBaseContext(), "Schreibe SEPA-xml Datei...",
-		 * Toast.LENGTH_LONG).show(); SepaDirectDebitFile test = new
-		 * SepaDirectDebitFile(num, getBaseContext(), run); } catch (Exception
-		 * e) { e.printStackTrace(); } } catch (IOException e) {
-		 * 
-		 * e.printStackTrace(); } if (backupSuccess) {
-		 * Toast.makeText(getBaseContext(), "Dtaus erfolgreich erzeugt!",
-		 * Toast.LENGTH_SHORT).show();
-		 * 
-		 * } else { Toast.makeText(getBaseContext(),
-		 * "ERROR:Dtaus Erzeugung fehlgeschlagen!", Toast.LENGTH_SHORT) .show();
-		 * 
-		 * }
-		 */
-
 	}
 
 	private void resetwork() {
@@ -671,7 +1236,6 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			myDbHelper.createDataBase();
 			backupSuccess = myDbHelper.resetwork();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		if (backupSuccess) {
@@ -686,38 +1250,215 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		}
 
 	}
-
-	private void createibans() {
+	private void resetAbbuchung() {
 		boolean backupSuccess = false;
 		try {
 			myDbHelper.createDataBase();
-			Toast.makeText(getBaseContext(), "Bereite IBANs vor...",
-					Toast.LENGTH_LONG).show();
-			backupSuccess = myDbHelper.createibans();
+			backupSuccess = myDbHelper.resetAbbuchung();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		if (backupSuccess) {
+			Toast.makeText(getBaseContext(), "Abbuchungs Flag erfolgreich zurückgesetzt!",
+					Toast.LENGTH_SHORT).show();
+
+		} else {
+			Toast.makeText(getBaseContext(),
+					"ERROR:Abbuchungs Reset Flag fehlgeschlagen!", Toast.LENGTH_SHORT)
+					.show();
+
+		}
+
+	}
+	
+	private void OnlineUpdate() {
+		boolean backupSuccess = false;
+		try {
+			myDbHelper.createDataBase();
+			backupSuccess = myDbHelper.backupDataBase();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		if (backupSuccess) {
-			Toast.makeText(getBaseContext(), "IBANS erfolgreich erzeugt!",
+			Toast.makeText(getBaseContext(), "Backup db successful!",
+					Toast.LENGTH_SHORT).show();
+			doOnlineUpdade();
+		} else {
+			Toast.makeText(getBaseContext(), "ERROR:Backup failed",
+					Toast.LENGTH_SHORT).show();
+		}
+	}
+	
+	private void OnlineUpload() {
+		String backupSuccess = "";
+		try {
+			myDbHelper.createDataBase();
+			backupSuccess = myDbHelper.backupDataBaseOnline();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		if (backupSuccess != "") {
+			Toast.makeText(getBaseContext(), "Backup db successful!",
+					Toast.LENGTH_SHORT).show();
+			doOnlineUpload(backupSuccess);
+		} else {
+			Toast.makeText(getBaseContext(), "ERROR:Backup failed",
+					Toast.LENGTH_SHORT).show();
+		}
+	}
+	
+	private void setAbbuchung() {
+		boolean backupSuccess = false;
+		try {
+			myDbHelper.createDataBase();
+			backupSuccess = myDbHelper.setAbbuchung();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		if (backupSuccess) {
+			Toast.makeText(getBaseContext(), "Abbuchungs Flag erfolgreich gesetzt!",
 					Toast.LENGTH_SHORT).show();
 
 		} else {
 			Toast.makeText(getBaseContext(),
-					"ERROR:Erzeugung der IBANS fehlgeschlagen!",
+					"ERROR:Abbuchungs set Flag fehlgeschlagen!", Toast.LENGTH_SHORT)
+					.show();
+
+		}
+
+	}
+	
+	private void resetyear() {
+		boolean backupSuccess = false;
+		try {
+			myDbHelper.createDataBase();
+			backupSuccess = myDbHelper.resetyear();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		if (backupSuccess) {
+			Toast.makeText(getBaseContext(), "Jahr erfolgreich zurückgesetzt!",
 					Toast.LENGTH_SHORT).show();
+
+		} else {
+			Toast.makeText(getBaseContext(),
+					"ERROR:Reset fehlgeschlagen!", Toast.LENGTH_SHORT)
+					.show();
 
 		}
 
 	}
 
+	@SuppressLint("HandlerLeak")
+	private void createibans() {
+		final ProgressDialog dialog;
+		final Integer increment = 20;
+		dialog = new ProgressDialog(this);
+		dialog.setCancelable(false);
+		dialog.setMessage("Bearbeite Datenbank...");
+		dialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+		dialog.setProgress(0);
+		dialog.setMax(100);
+		dialog.show();
+		
+		final Handler progressHandler = new Handler() {
+			public void handleMessage(Message msg) {
+				
+				dialog.incrementProgressBy(increment);
+				if (dialog.getProgress() >= 60) 
+					dialog.setMessage("Erzeuge IBAN Prüfsummen...");
+				if (dialog.getProgress() == 40) 
+					dialog.setMessage("Erzeuge BIC...");
+			}
+		};
+		Thread background = new Thread(new Runnable() {
+			public void run() {
+				try {
+					try {
+						progressHandler.sendMessage(progressHandler
+								.obtainMessage());
+						myDbHelper.createDataBase();
+						myDbHelper.createibans();
+						
+						progressHandler.sendMessage(progressHandler
+								.obtainMessage());
+						try {
+							myDbHelper.createbics();
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					progressHandler.sendMessage(progressHandler
+								.obtainMessage());
+						Thread.sleep(500);
+						dialog.dismiss();
+
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+
+					while (dialog.getProgress() <= dialog.getMax()) {
+						Thread.sleep(500);
+						progressHandler.sendMessage(progressHandler
+								.obtainMessage());
+					}
+				} catch (java.lang.InterruptedException e) {
+				}
+			}
+		});
+
+		background.start();
+	}
+	
+	private void exportAddresslist() {
+		boolean backupSuccess = false;
+		try {
+			myDbHelper.createDataBase();
+			backupSuccess = myDbHelper.exportAddresslist();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		if (backupSuccess) {
+			Toast.makeText(getBaseContext(),
+					"Export der Adressen erfolgreich!", Toast.LENGTH_SHORT)
+					.show();
+
+		} else {
+			Toast.makeText(getBaseContext(),
+					"ERROR:Export der Adressen fehlgeschlagen!",
+					Toast.LENGTH_SHORT).show();
+
+		}
+
+	}
+	private void exportEmailist() {
+		boolean backupSuccess = false;
+		try {
+			myDbHelper.createDataBase();
+			backupSuccess = myDbHelper.exportEmailist();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		if (backupSuccess) {
+			Toast.makeText(getBaseContext(),
+					"Export der Emails erfolgreich!", Toast.LENGTH_SHORT)
+					.show();
+
+		} else {
+			Toast.makeText(getBaseContext(),
+					"ERROR:Exportder Emails fehlgeschlagen!",
+					Toast.LENGTH_SHORT).show();
+
+		}
+
+	}
 	private void exportDataBase() {
 		boolean backupSuccess = false;
 		try {
 			myDbHelper.createDataBase();
 			backupSuccess = myDbHelper.exportDataBase();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		if (backupSuccess) {
@@ -740,7 +1481,6 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			myDbHelper.createDataBase();
 			backupSuccess = myDbHelper.backupDataBase();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		if (backupSuccess) {
@@ -902,6 +1642,7 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		try {
 				// to do maintain year
 			myDbHelper.createDataBase();
+			String actualYear = String.valueOf(Calendar.getInstance().get(Calendar.YEAR));
 			DataToDB = myDbHelper.ReadStatsFromDB();
 			stat += "Mitglieder gesamt: " + DataToDB[0] + "\n";
 			stat += "Aktive: " + DataToDB[1] + "\n";
@@ -909,7 +1650,7 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			stat += "Ehrenmitglieder: " + DataToDB[3] + "\n";
 			stat += "Fördermitglieder: " + DataToDB[4] + "\n";
 			stat += "ruhende Mitglieder: " + DataToDB[5] + "\n";
-			stat += "Austritte bis Ende 2014: " + DataToDB[6] + "\n";
+			stat += "Austritte bis Ende "+ actualYear + ": " + DataToDB[6] + "\n";
 
 			DataToDB = myDbHelper.ReadAverageAlterFromDB();
 
@@ -941,8 +1682,8 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 				.setTitle("Versionshinweis")
 				.setInverseBackgroundForced(false)
 				.setMessage(
-						"Aero-Club Hamburg e.V.\n" + "Mitgliederliste V1.4\n"
-								+ "(c) 2013, 2014 Ralf Rosche\n"
+						"Aero-Club Hamburg e.V.\n" + "Mitgliederliste V1.6\n"
+								+ "(c) 2013, 2014, 2015 Ralf Rosche\n"
 								+ "Database Version: " + DatabaseHelper.DB_NAME
 								+ "\nKommerzielle Nutzung der Daten verboten!")
 				.show();
@@ -1103,6 +1844,7 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			});
 			scontactButton.setOnClickListener(new View.OnClickListener() {
 
+				@SuppressLint("InlinedApi")
 				@Override
 				public void onClick(View arg0) {
 					String phoneNumber = smobil.getText().toString();
@@ -1285,5 +2027,21 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 				getContentResolver().openInputStream(selectedImage), null, o2);
 
 	}
+	
+	public static void restart(Context context, int delay) {
+	    if (delay == 0) {
+	        delay = 1;
+	    }
+	    Log.e("", "restarting app");
+	    Intent restartIntent = context.getPackageManager()
+	            .getLaunchIntentForPackage(context.getPackageName() );
+	    PendingIntent intent = PendingIntent.getActivity(
+	            context, 0,
+	            restartIntent, Intent.FLAG_ACTIVITY_CLEAR_TOP);
+	    AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+	    manager.set(AlarmManager.RTC, System.currentTimeMillis() + delay, intent);
+	    System.exit(2);
+	}
+	
 
 }

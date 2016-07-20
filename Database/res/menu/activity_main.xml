@@ -47,22 +47,57 @@
     </item>
     <item
         android:id="@+id/makedtaus"
-        android:title="DTAUS 1.Halbjahr"
+        android:title="SEPA 1.Halbjahr"
         android:visible="false">
     </item>
     <item
         android:id="@+id/makedtaus2"
-        android:title="DTAUS 2.Halbjahr" android:visible="false">
+        android:title="SEPA 2.Halbjahr" android:visible="false">
     </item>
     <item
         android:id="@+id/editOpt"
         android:title="Einstellungen"
         android:visible="false">
     </item>
+     <item
+        android:id="@+id/emailList"
+        android:title="Emailliste"
+        android:visible="false">
+    </item>
+    <item
+        android:id="@+id/addressList"
+        android:title="Adressenliste"
+        android:visible="false">
+    </item>
     <item
         android:id="@+id/resetwork"
         android:title="Platzarbeit zurücksetzen" android:visible="false">
     </item>
+    <item
+        android:id="@+id/resetyear"
+        android:title="Jahr abschliessen" android:visible="false">
+    </item>
     <item android:id="@+id/importDB" android:title="Importiere Datensätze" android:visible="false"></item>
-
+	  <item
+        android:id="@+id/menu_help"
+        android:icon="@drawable/ic_menu_help"
+        android:title="Hilfe">
+    </item>
+    <item
+        android:id="@+id/executeSQL"
+        android:title="SQL ausführen" android:visible="false">
+    </item>
+        <item
+        android:id="@+id/restoreDB"
+        android:title="Restore DB" android:visible="false">
+    </item>
+      <item
+        android:id="@+id/old"
+        android:title="show 'ausgetreten'" android:visible="false">
+    </item>
+      <item android:id="@+id/resetAbbuchung" android:title="Abbuchung zurücksetzen" android:visible="false"></item>
+      <item android:id="@+id/setAbbuchung" android:title="Set alle abbuchen" android:visible="false"></item>
+      <item android:id="@+id/OnlineUpdate" android:title="Online Update"></item>
+      <item android:id="@+id/OnlineUpload" android:title="Online Upload" android:visible="false"></item>
+  
 </menu>

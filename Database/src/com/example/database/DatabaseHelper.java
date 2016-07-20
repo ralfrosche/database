@@ -1,18 +1,20 @@
 package com.example.database;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -20,10 +22,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.StringTokenizer;
 
-import de.jost_net.OBanToo.Dtaus.CSatz;
+/*import de.jost_net.OBanToo.Dtaus.CSatz;
 import de.jost_net.OBanToo.Dtaus.DtausDateiWriter;
 import de.jost_net.OBanToo.Dtaus.DtausException;
-
+*/
 import android.annotation.SuppressLint;
 
 import android.content.Context;
@@ -45,16 +47,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 	private static String DB_PATH = "/data/data/com.example.database/databases/";
 	private static final String TABLE_NAME_VERSION = "version";
-	public static final String PROGRAMM_VERSION = "1";
+	public static final String PROGRAMM_VERSION = "3";
 
-	public static String DB_NAME = "mitglieder20140417";
+	public static String DB_NAME = "mitglieder20140917";
 
 	private SQLiteDatabase myDataBase;
 
 	private final Context myContext;
 
 	public int actualVersion = 0;
-
+	public Float sum = 0.0f;
 	public ArrayList<String> upgrades = new ArrayList<String>();
 
 	/**
@@ -68,6 +70,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		super(context, DB_NAME, null, 1);
 		this.myContext = context;
 		upgrades.clear();
+		upgrades.add("ALTER TABLE preferencies ADD COLUMN update_user TEXT;");
+		upgrades.add("ALTER TABLE preferencies ADD COLUMN update_password TEXT;");
+		upgrades.add("ALTER TABLE preferencies ADD COLUMN update_server TEXT;");
+
 	}
 
 	public boolean upgradeDatabaseVersion(Context context) {
@@ -178,15 +184,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			File sdCard = Environment.getExternalStorageDirectory();
 			String dir = sdCard.getAbsolutePath() + "/mliste/import/";
 			String inFilename = "mitglieder.csv";
-
+			
 			FileReader fr = new FileReader(dir + inFilename);
-			BufferedReader br = new BufferedReader(fr);
+			InputStreamReader is = new InputStreamReader(new FileInputStream(dir + inFilename),"ISO8859-1");
+			BufferedReader br = new BufferedReader(is);
 
 			String data = "";
 			String tableName = "mitglieder";
 			ArrayList<String> colums = getTableHeader(tableName);
 			Integer length = colums.size();
-
+			Log.e("mliste","columns:"+colums);
+			Log.e("mliste","length:"+length);
 			String columns = "";
 			Integer posID = 0;
 			Integer i = 0;
@@ -206,8 +214,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 				Integer nextval = getId("mitglieder", "mitgliedsnummer");
 
-				String[] sarray = data.split(";");
-
+				String[] sarray = data.split(";",-1);
+				Log.e("mliste","sarray:"+sarray.length);
 				String sqlQuery = "";
 				if (sarray.length == length) {
 
@@ -232,7 +240,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 						sqlQuery = sqlQuery.substring(0, sqlQuery.length() - 1);
 
 						sqlQuery += InsertString2;
-						//Log.e("MLISTE", "+++ SQL importCSV:" + sqlQuery);
+						Log.e("MLISTE", "+++ SQL importCSV:" + sqlQuery);
 
 						try {
 							SQLiteDatabase db = this.getWritableDatabase();
@@ -256,6 +264,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 			br.close();
 			fr.close();
+			is.close();
 			File file = new File(dir + inFilename);
 			file.delete();
 			MainActivity.updateView = true;
@@ -273,13 +282,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	}
 
 	public Integer writeDtaus(Integer run) throws Exception {
+		/*
 		FileOutputStream fos = null;
 		File sdCard = Environment.getExternalStorageDirectory();
-		File dir = new File(sdCard.getAbsolutePath() + "/dtaus/");
+		File dir = new File(sdCard.getAbsolutePath() + "/mliste/sepa/");
 		dir.mkdir();
 		String outFilename = "";
 		String logFilename = "";
 		String errFilename = "";
+*/
+		/*
 		if (run == 1) {
 			outFilename = "dtaus0_1";
 		} else {
@@ -338,6 +350,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			printStreamErr.close();
 			return null;
 		}
+		
 		Map<String, String> prefs = null;
 		prefs = getPreferncies();
 		String name = prefs.get("name");
@@ -351,10 +364,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		if (kontonummer != null)
 			dtausDateiWriter.setAKonto(Long.parseLong(kontonummer));
 		dtausDateiWriter.writeASatz();
-		String sqlQuery = "SELECT Vorname, Nachname,kontoinhaber, mitgliedsnummer,abbuchung, fremdkonto,blz, konto,iban, betrag1,betrag2, verwendungszweck FROM mitglieder WHERE status='aktiv' ORDER BY CAST(mitgliedsnummer AS INTEGER) ASC";
+		
+		*/
+		String sqlQuery = "SELECT Vorname, Nachname,kontoinhaber, mitgliedsnummer,abbuchung, fremdkonto,blz, konto,iban, betrag1,betrag2, verwendungszweck FROM mitglieder WHERE status='aktiv' AND abbuchung='1' ORDER BY CAST(mitgliedsnummer AS INTEGER) ASC";
 		Integer i = 0;
 		Integer errornr = 0;
-		long summe = 0L;
+		double summe = 0.0f;
 		try {
 			SQLiteDatabase db = this.getWritableDatabase();
 			Cursor c = db.rawQuery(sqlQuery, null);
@@ -387,8 +402,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 							.getColumnIndex("kontoinhaber"));
 					String verwendungszweck = c.getString(c
 							.getColumnIndex("verwendungszweck"));
-					Integer fremdkonto = Integer.parseInt(c.getString(c
-							.getColumnIndex("fremdkonto")));
+					
+					Integer fremdkonto = 0;
+					if (!c.getString(c.getColumnIndex("fremdkonto")).trim().equals("")) {
+						fremdkonto = Integer.parseInt(c.getString(c
+								.getColumnIndex("fremdkonto")));
+					}
+
 					Integer abbuchung = Integer.parseInt(c.getString(c
 							.getColumnIndex("abbuchung")));
 					String Cname = "";
@@ -402,12 +422,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 						String status = "OK";
 						try {
-							summe += Long.parseLong(betrag);
+							summe += Double.parseDouble(betrag);
 						} catch (Exception er) {
 							status = "BETRAGERROR";
 						}
 						// logfile
 						i++;
+						/*
 						String record = "";
 						record = '"' + String.valueOf(i) + '"' + separation
 								+ '"' + status + '"' + separation + '"'
@@ -436,9 +457,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 						dtausDateiWriter.addCVerwendungszweck(verwendungszweck);
 						dtausDateiWriter.writeCSatz();
 						// Log.e("mliste","geschrieben: "+ Cname);
+						 
+						 */
 
 					} else {
-
+						/*
 						errornr++;
 						String record = "";
 						record = '"' + String.valueOf(errornr) + '"'
@@ -456,28 +479,34 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 								+ "\n";
 						printStreamErr.write(record);
 
-						//Log.e("mliste", "nicht geschrieben: " + Cname);
+						Log.e("mliste", "nicht geschrieben: " + Cname);
+						*/
 					}
+					
 				} while (c.moveToNext());
 			}
 			c.close();
 			db.close();
 
 		} catch (SQLiteException er) {
+			/*
 			dtausDateiWriter.close();
 			fos.close();
 			printStreamLog.flush();
 			printStreamErr.flush();
 			printStreamLog.close();
 			printStreamErr.close();
+			*/
 			return null;
 
 		}
+		/*
 		String summensatz = '"' + "Anzahl: " + String.valueOf(i) + '"' + "\n";
 		printStreamLog.write(summensatz);
 		summensatz = '"' + "Betrag: " + String.valueOf(summe) + '"' + "\n";
 		printStreamLog.write(summensatz);
-
+		
+		
 		summensatz = '"' + "Anzahl: " + String.valueOf(errornr) + '"' + "\n";
 		printStreamErr.write(summensatz);
 
@@ -488,6 +517,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		printStreamErr.flush();
 		printStreamLog.close();
 		printStreamErr.close();
+		*/
+		sum = (float) summe;
 		return i;
 
 	}
@@ -519,36 +550,71 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	@SuppressLint("NewApi")
 	public Element getTransactions(Element PmtInf, Document xml, Integer run) {
 
-		String sqlQuery = "SELECT mitgliedsnummer,kontoinhaber,eintritt,verwendungszweck,betrag2,betrag1,iban FROM mitglieder WHERE status='aktiv'  AND abbuchung='1'  ORDER BY CAST(mitgliedsnummer AS INTEGER) ASC";
+		String sqlQuery = "SELECT mitgliedsnummer,kontoinhaber,Eintritt,verwendungszweck,betrag2,betrag1,iban,bic,mandatsdatum FROM mitglieder WHERE status='aktiv'  AND abbuchung='1'  ORDER BY CAST(mitgliedsnummer AS INTEGER) ASC";
 		try {
 			SQLiteDatabase db = this.getWritableDatabase();
+			SQLiteDatabase db2 = this.getWritableDatabase();
+			//String sqlQueryUdpate = "UPDATE mitglieder SET mandatsdatum ='' WHERE 1";	
+			//db2.execSQL(sqlQueryUdpate);
 			Cursor c = db.rawQuery(sqlQuery, null);
 			Integer i = 0;
+			float summe = 0f;
 			if (c.moveToFirst()) {
 				do {
 					String kontoinhaber = c.getString(c
 							.getColumnIndex("kontoinhaber"));
 					String iban = c.getString(c.getColumnIndex("iban"));
+					String bic = c.getString(c.getColumnIndex("bic"));
 					String verwendungszweck = c.getString(c
 							.getColumnIndex("verwendungszweck"));
 					String eintritt = c.getString(c.getColumnIndex("Eintritt"));
+					String mandatsdatum = c.getString(c.getColumnIndex("mandatsdatum"));
+					String mitgliedsnummerString = c.getString(c.getColumnIndex("mitgliedsnummer"));
+					// harcoded mandatsdatum
+					//eintritt = "2014-04-16";
+					//eintritt = "16.04.2014";
+					String mandatsdatumNew = mandatsdatum;
+					
+					if (!mandatsdatumNew.trim().equals("")){
+						if (mandatsdatumNew.contains(".")) {
+							StringTokenizer tokens = new StringTokenizer(mandatsdatumNew,
+									".");
+							String day = tokens.nextToken();
+							String month = tokens.nextToken();
+							String year = tokens.nextToken();
+							mandatsdatumNew = year + "-" + month + "-" + day;
+							
+						}
+					}
+					String actualYear = String.valueOf(Calendar.getInstance().get(Calendar.YEAR));
+					Integer actualYearInt = Integer.parseInt(actualYear);
 					if (eintritt.contains(".")) {
 						StringTokenizer tokens = new StringTokenizer(eintritt,
 								".");
-						String day = tokens.nextToken();// this will contain
-														// "Fruit"
+						String day = tokens.nextToken();
 						String month = tokens.nextToken();
 						String year = tokens.nextToken();
 						eintritt = year + "-" + month + "-" + day;
+						if  (Integer.parseInt(year) >= actualYearInt && mandatsdatumNew.trim().equals("")) {
+							mandatsdatumNew =  eintritt;
+						}
+						else {
+							mandatsdatumNew = actualYear+"-01-01";
+						}
+						
 					} else {
-						SimpleDateFormat dateRFormat = new SimpleDateFormat(
-								"yyyy-MM-dd", Locale.GERMANY);
-						eintritt = dateRFormat.format(new Date());
+						//SimpleDateFormat dateRFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.GERMANY);
+						mandatsdatumNew = actualYear+"-01-01";
+						//eintritt = dateRFormat.format(new Date());
 					}
-
+					if (!mandatsdatumNew.equals(mandatsdatum)) {
+						sqlQuery = "UPDATE mitglieder SET mandatsdatum = '"+mandatsdatumNew+"' WHERE mitgliedsnummer='"+mitgliedsnummerString+"'";
+						db2.execSQL(sqlQuery);
+					}
 					Integer mitgliedsnummer = Integer.parseInt(c.getString(c
 							.getColumnIndex("mitgliedsnummer")));
 					Float betrag = 0f;
+					
 					if (run == 2) {
 						betrag = Float.parseFloat(c.getString(c
 								.getColumnIndex("betrag2")));
@@ -556,18 +622,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 						betrag = Float.parseFloat(c.getString(c
 								.getColumnIndex("betrag1")));
 					}
-
+					summe += betrag;
 					String betragForatted = String.format("%.2f", betrag);
 					betragForatted = betragForatted.replaceAll(",", ".");
 
-					i++;
+				
 					// transaction
 					Element DrctDbtTxInf = xml.createElement("DrctDbtTxInf");
 					Element PmtId = xml.createElement("PmtId");
 					Element EndToEndId = xml.createElement("EndToEndId");
-					EndToEndId.setTextContent(String.format("%07d", i));
+					i++;
+					// 000001:000000
+					EndToEndId.setTextContent("000001:"+String.format("%06d", i));
 					PmtId.appendChild(EndToEndId);
 					DrctDbtTxInf.appendChild(PmtId);
+					
 
 					Element InstdAmt = xml.createElement("InstdAmt");
 					InstdAmt.setTextContent(betragForatted);
@@ -579,19 +648,22 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 					Element MndtRltdInf = xml.createElement("MndtRltdInf");
 					Element MndtId = xml.createElement("MndtId");
 					Element DtOfSgntr = xml.createElement("DtOfSgntr");
+					Element AmdmntInd = xml.createElement("AmdmntInd");
+					AmdmntInd.setTextContent("false");
 					MndtId.setTextContent(String
 							.format("%07d", mitgliedsnummer));
-					DtOfSgntr.setTextContent(eintritt);
+					DtOfSgntr.setTextContent(mandatsdatumNew);
 					MndtRltdInf.appendChild(MndtId);
 					MndtRltdInf.appendChild(DtOfSgntr);
+					MndtRltdInf.appendChild(AmdmntInd);
 					DrctDbtTx.appendChild(MndtRltdInf);
 
-					// Element DbtrAgt = xml.createElement("DbtrAgt");
-					// Element FinInstnId2 = xml.createElement("FinInstnId");
-					// Element BIC2 = xml.createElement("BIC");
-					// BIC2.setTextContent("kundenbic");
-					// FinInstnId2.appendChild(BIC2);
-					// DbtrAgt.appendChild(FinInstnId2);
+					 Element DbtrAgt = xml.createElement("DbtrAgt");
+					 Element FinInstnId2 = xml.createElement("FinInstnId");
+					 Element BIC2 = xml.createElement("BIC");
+					 BIC2.setTextContent(bic);
+					 FinInstnId2.appendChild(BIC2);
+					 DbtrAgt.appendChild(FinInstnId2);
 
 					Element Dbtr = xml.createElement("Dbtr");
 					Element Nm3 = xml.createElement("Nm");
@@ -601,6 +673,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 					Element DbtrAcct = xml.createElement("DbtrAcct");
 					Element Id5 = xml.createElement("Id");
 					Element IBAN2 = xml.createElement("IBAN");
+					
 					IBAN2.setTextContent(iban);
 					Id5.appendChild(IBAN2);
 					DbtrAcct.appendChild(Id5);
@@ -610,17 +683,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 					Ustrd.setTextContent(verwendungszweck);
 					RmtInf.appendChild(Ustrd);
 					DrctDbtTxInf.appendChild(DrctDbtTx);
+					DrctDbtTxInf.appendChild(DbtrAgt);
 					DrctDbtTxInf.appendChild(Dbtr);
 					DrctDbtTxInf.appendChild(DbtrAcct);
 					DrctDbtTxInf.appendChild(RmtInf);
 					PmtInf.appendChild(DrctDbtTxInf);
-					// PmtInf.appendChild(DbtrAgt);
-
+					
+			
 				} while (c.moveToNext());
 			}
+			sum = summe;
 			c.close();
 			db.close();
-
+			db2.close();
 		} catch (SQLiteException e) {
 
 			Log.e("MLISTE", "+++ readData +++" + e);
@@ -629,12 +704,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		return PmtInf;
 
 	}
+	public Float getSum() {
+		return sum;
+	}
 
 	public boolean prepareDatabase(Integer run) {
 		Map<String, String> prefs = getPreferncies();
-		// Log.e("MLISTE", "+++ lastschriften text +++"
-		// +prefs.get("lastschrifttext"));
 		String lastschrifttext = prefs.get("lastschrifttext");
+		if (lastschrifttext.length() > 12)
+			lastschrifttext = lastschrifttext.substring(0,12);
+		
 		Integer beitrag_erwachsene = 0;
 		Integer beitrag_jugendliche = 0;
 		Integer platzarbeit = 0;
@@ -653,7 +732,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		// String sqlQuery=
 		// "SELECT  lastschrifttext,beitrag_erwachsene,beitrag_jugendliche,platzarbeit,versicherung_1,versicherung_3 FROM preferencies";
 		String sqlQuery = "SELECT Vorname, Nachname, fremdkonto,abbuchung, mitgliedsnummer, versicherung, kontoinhaber, jugendlicher,platzarbeit FROM mitglieder WHERE status='aktiv' ORDER BY CAST(mitgliedsnummer AS INTEGER) ASC";
-
+		Integer beitrag_gesamt = 0;
 		try {
 			SQLiteDatabase db = this.getWritableDatabase();
 			SQLiteDatabase db2 = this.getWritableDatabase();
@@ -666,26 +745,38 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 					String Nachname = c.getString(c.getColumnIndex("Nachname"));
 					String mitgliedsnummer = c.getString(c
 							.getColumnIndex("mitgliedsnummer"));
-					Integer jugendlicher = Integer.parseInt(c.getString(c
-							.getColumnIndex("jugendlicher")));
-					Integer versicherung = Integer.parseInt(c.getString(c
-							.getColumnIndex("versicherung")));
-					Integer fremdkonto = Integer.parseInt(c.getString(c
-							.getColumnIndex("fremdkonto")));
-					Integer platzarbeitM = Integer.parseInt(c.getString(c
-							.getColumnIndex("platzarbeit")));
+					
+					String jgl = c.getString(c.getColumnIndex("jugendlicher")).trim();
+					if (jgl.equals(""))
+						jgl = "0";
+					
+					Integer jugendlicher = Integer.parseInt(jgl);
+					String vers = c.getString(c.getColumnIndex("versicherung")).trim();
+					if (vers.equals(""))
+						vers = "1";
+					Integer versicherung = Integer.parseInt(vers);
+					Integer fremdkonto = 0;
+		
+					if (!c.getString(c.getColumnIndex("fremdkonto")).trim().equals("")) {
+						fremdkonto = Integer.parseInt(c.getString(c
+								.getColumnIndex("fremdkonto")));
+					}
+					String pla = c.getString(c.getColumnIndex("platzarbeit")).trim();
+					if (pla.equals(""))
+						pla = "0";
+					Integer platzarbeitM = Integer.parseInt(pla);
 					Integer beitrag = 0;
 					if (jugendlicher == 1) {
 						beitrag = 6 * beitrag_jugendliche;
 					} else {
 						beitrag = 6 * beitrag_erwachsene;
 					}
-					if (run == 1) {
+					if (run == 2) {
 						if (platzarbeitM != 1) {
 							beitrag += platzarbeit;
 						}
 					}
-					if (run == 2) {
+					if (run == 1) {
 						if (versicherung == 2) {
 							beitrag += versicherung_3;
 						} else {
@@ -694,13 +785,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 					}
 					String CName = "";
 					if (fremdkonto != 1) {
-						CName = Vorname + " " + Nachname;
+						String glue = ", ";
+						if (Vorname.equals(""))
+							glue = "";
+						CName = Nachname  + glue + Vorname;
+					} else {
+						CName = Nachname;
+								
+					}
 						sqlQuery = "UPDATE mitglieder SET kontoinhaber='"
 								+ CName
 								+ "' WHERE CAST(mitgliedsnummer AS INTEGER)="
 								+ Integer.parseInt(mitgliedsnummer);
 						db2.execSQL(sqlQuery);
-					}
+					
 
 					if (run == 2) {
 						sqlQuery = "UPDATE mitglieder SET betrag2='"
@@ -716,19 +814,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 					}
 					db2.execSQL(sqlQuery);
 					sqlQuery = "UPDATE mitglieder SET verwendungszweck='"
-							+ lastschrifttext + " Mitgliedsnummer "
+							+ lastschrifttext + " Mgld.Nr. "
 							+ mitgliedsnummer
 							+ "' WHERE CAST(mitgliedsnummer AS INTEGER)="
 							+ Integer.parseInt(mitgliedsnummer);
 					db2.execSQL(sqlQuery);
-
+					
+					String abb = c.getString(c.getColumnIndex("abbuchung")).trim();
+					if (abb.equals(""))
+						abb = "0";
+					Integer abbuchung = Integer.parseInt(abb);
+					if (abbuchung == 0 ) {
+						Log.e("name:",""+Nachname+mitgliedsnummer+":" + String.valueOf(beitrag));
+					}
+					beitrag_gesamt +=beitrag;
+					//Log.e("name:",""+Nachname+mitgliedsnummer+":" + String.valueOf(beitrag));
 				} while (c.moveToNext());
 			}
 
 			c.close();
 			db.close();
 			db2.close();
-			// Log.e("MLISTE", "anzahl:" + i);
+			 Log.e("MLISTE", "anzahl:" + i);
+			 Log.e("MLISTE", "beitraggesamt:" + beitrag_gesamt);
 		} catch (SQLiteException e) {
 
 			Log.e("MLISTE", "+++ readData +++" + e);
@@ -736,7 +844,61 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		}
 		return true;
 	}
+	public String[] ReadNRFromDBFilter(String filter, boolean youth) {
 
+		ArrayList temp_array = new ArrayList();
+		String[] number_array = new String[0];
+
+		String constraint = "";
+		if (filter.equals("")) {
+			constraint = "";
+		} else {
+			constraint = " WHERE Nachname like '%" + filter
+					+ "%'";
+			
+		}
+
+		if (youth == true) {
+			if (constraint.equals("")) {
+				constraint += " WHERE status = 'ausgetreten'";
+				
+			} else {
+				constraint += " AND status = 'ausgetreten'";
+			}
+			
+		}
+		String sqlQuery = "SELECT Vorname, Nachname, mitgliedsnummer FROM mitglieder "
+				+ constraint + " ORDER BY Nachname";
+
+		try {
+			SQLiteDatabase db = this.getWritableDatabase();
+
+			Cursor c = db.rawQuery(sqlQuery, null);
+
+			if (c.moveToFirst()) {
+				do {
+					temp_array.add(c.getString(c.getColumnIndex("Nachname"))
+							+ "," + c.getString(c.getColumnIndex("Vorname"))
+							+ ","
+							+ c.getString(c.getColumnIndex("mitgliedsnummer"))
+
+					);
+
+				} while (c.moveToNext());
+			}
+
+			c.close();
+			db.close();
+		} catch (SQLiteException e) {
+
+			Log.e("MLISTE", "+++ readData +++" + e);
+
+		}
+
+		number_array = (String[]) temp_array.toArray(number_array);
+
+		return number_array;
+	}
 	public String[] ReadNRFromDB(String filter, boolean youth) {
 
 		ArrayList temp_array = new ArrayList();
@@ -914,8 +1076,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			}
 
 			c.close();
+			String actualYear = String.valueOf(Calendar.getInstance().get(Calendar.YEAR));
 
-			sqlQuery = "SELECT count(*) as austritte  FROM mitglieder WHERE austritt =  '31.12.2014' and status = 'aktiv'";
+			sqlQuery = "SELECT count(*) as austritte  FROM mitglieder WHERE austritt =  '31.12."+actualYear+"' and status = 'aktiv'";
 			c = db.rawQuery(sqlQuery, null);
 
 			if (c.moveToFirst()) {
@@ -1170,6 +1333,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			printStream.write(stHeader);
 
 			sqlQuery = "SELECT * FROM mitglieder where status <> 'ausgetreten'";
+			// sqlQuery = "SELECT * FROM mitglieder where status <> 'ausgetreten'";
 			c = db.rawQuery(sqlQuery, null);
 			if (c.moveToFirst()) {
 
@@ -1207,13 +1371,171 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		}
 		return true;
 	}
+	public boolean exportEmailist() throws IOException {
+		ArrayList<String> header = new ArrayList<String>();
+		try {
+			SimpleDateFormat dateFormat = new SimpleDateFormat(
+					"ddMMyyyyHHmmss", Locale.GERMANY);
+			File sdCard = Environment.getExternalStorageDirectory();
+			File dir = new File(sdCard.getAbsolutePath() + "/mliste");
+			dir.mkdir();
+			String outFilename = dateFormat.format(new Date()) + "_"
+					+ "email.csv";
 
+			File f = new File(dir, outFilename);
+			f.createNewFile();
+			OutputStream myOutput = new FileOutputStream(f);
+			OutputStreamWriter printStream = new OutputStreamWriter(myOutput,
+					"CP1252");
+			header.clear();
+			header.add("Anrede");
+			header.add("Vorname");
+			header.add("Nachname");
+			header.add("Gender");
+			header.add("Email");
+			
+			int length = header.size();
+			String separation = ";";
+			String stHeader = "";
+			for (int i = 0; i < length; i++) {
+				if (i == length - 1) {
+					stHeader += '"' + header.get(i) + '"';
+				} else {
+					stHeader += '"' + header.get(i) + '"' + separation;
+				}
+
+			}
+			stHeader += "\n";
+
+			printStream.write(stHeader);
+			String sqlQuery = "SELECT case when trim(Anrede) = 'Herr' then 'Lieber ' || Vorname || ' ' || Nachname else 'Liebe '  || Vorname || ' ' || Nachname end as Anrede,Vorname,Nachname,Anrede as Gender,Email from mitglieder where Email <>'' and status <> 'ausgetreten' order by Nachname";
+			SQLiteDatabase db = this.getWritableDatabase();
+			Cursor c = db.rawQuery(sqlQuery, null);
+			if (c.moveToFirst()) {
+
+				do {
+					String record = "";
+					for (int i = 0; i < length; i++) {
+						String field = header.get(i);
+
+						// String field_name = field.toString();
+						String field_value = c.getString(c
+								.getColumnIndex(field));
+
+						// byte[] chars = field_value.getBytes("UTF-8");
+						// String isoString = new String(chars, "ISO-8859-1");
+						if (i == length - 1) {
+							record += '"' + field_value + '"' + "\n";
+						} else {
+							record += '"' + field_value + '"' + separation;
+						}
+
+					}
+					printStream.write(record);
+				} while (c.moveToNext());
+			}
+
+			c.close();
+
+			printStream.flush();
+			printStream.close();
+			myOutput.flush();
+			myOutput.close();
+
+		} catch (SQLiteException e) {
+			return false;
+		}
+		return true;
+	}
+	
+	public boolean exportAddresslist() throws IOException {
+		ArrayList<String> header = new ArrayList<String>();
+		try {
+			SimpleDateFormat dateFormat = new SimpleDateFormat(
+					"ddMMyyyyHHmmss", Locale.GERMANY);
+			File sdCard = Environment.getExternalStorageDirectory();
+			File dir = new File(sdCard.getAbsolutePath() + "/mliste");
+			dir.mkdir();
+			String outFilename = dateFormat.format(new Date()) + "_"
+					+ "adressen.csv";
+
+			File f = new File(dir, outFilename);
+			f.createNewFile();
+			OutputStream myOutput = new FileOutputStream(f);
+			OutputStreamWriter printStream = new OutputStreamWriter(myOutput,
+					"CP1252");
+			header.clear();
+			header.add("mitgliedsnummer");
+			header.add("Anrede");
+			header.add("Vorname");
+			header.add("Nachname");
+			header.add("Strasse");
+			header.add("PLZ");
+			header.add("Ort");
+			header.add("Telefon");
+			header.add("Mobil");
+			header.add("Email");
+			int length = header.size();
+			String separation = ";";
+			String stHeader = "";
+			for (int i = 0; i < length; i++) {
+				if (i == length - 1) {
+					stHeader += '"' + header.get(i) + '"';
+				} else {
+					stHeader += '"' + header.get(i) + '"' + separation;
+				}
+
+			}
+			stHeader += "\n";
+
+			printStream.write(stHeader);
+			String sqlQuery = "SELECT mitgliedsnummer,Anrede,Vorname,Nachname,Strasse,PLZ,Ort,Telefon,Mobil,Email from mitglieder where status <> 'ausgetreten' order by Nachname";
+			//String sqlQuery = "SELECT * FROM mitglieder where status <> 'ausgetreten'";
+			SQLiteDatabase db = this.getWritableDatabase();
+			Cursor c = db.rawQuery(sqlQuery, null);
+			if (c.moveToFirst()) {
+
+				do {
+					String record = "";
+					for (int i = 0; i < length; i++) {
+						String field = header.get(i);
+
+						// String field_name = field.toString();
+						String field_value = c.getString(c
+								.getColumnIndex(field));
+
+						// byte[] chars = field_value.getBytes("UTF-8");
+						// String isoString = new String(chars, "ISO-8859-1");
+						if (i == length - 1) {
+							record += '"' + field_value + '"' + "\n";
+						} else {
+							record += '"' + field_value + '"' + separation;
+						}
+
+					}
+					printStream.write(record);
+				} while (c.moveToNext());
+			}
+
+			c.close();
+
+			printStream.flush();
+			printStream.close();
+			myOutput.flush();
+			myOutput.close();
+
+		} catch (SQLiteException e) {
+			return false;
+		}
+		return true;
+	}
 	public boolean resetwork() {
 
 		String sqlQuery = "UPDATE mitglieder SET platzarbeit = '0' where 1";
 		try {
 			SQLiteDatabase db = this.getWritableDatabase();
 			db.execSQL(sqlQuery);
+			db.close();
 		} catch (SQLiteException e) {
 
 			return false;
@@ -1222,10 +1544,116 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		return true;
 
 	}
+	public boolean resetAbbuchung() {
 
-	public boolean createibans() throws IOException {
-		String sqlSelectQuery = "SELECT * FROM mitglieder where status <> 'ausgetreten'";
-		String sqlUpdateQuery = "UPDATE mitglieder SET iban ='";
+		String sqlQuery = "UPDATE mitglieder SET abbuchung = '0' where status ='aktiv'";
+		try {
+			SQLiteDatabase db = this.getWritableDatabase();
+			db.execSQL(sqlQuery);
+			db.close();
+		} catch (SQLiteException e) {
+
+			return false;
+
+		}
+		return true;
+
+	}
+	public boolean setAbbuchung() {
+
+		String sqlQuery = "UPDATE mitglieder SET abbuchung = '1' where status ='aktiv'";
+		try {
+			SQLiteDatabase db = this.getWritableDatabase();
+			db.execSQL(sqlQuery);
+			db.close();
+		} catch (SQLiteException e) {
+
+			return false;
+
+		}
+		return true;
+
+	}
+	public boolean resetyear() {
+		String actualYear = String.valueOf(Calendar.getInstance().get(Calendar.YEAR));
+		Integer actualYearInt = Integer.parseInt(actualYear);
+		Log.e("actualYear",""+actualYear);
+		String sqlQuery = "SELECT Vorname, Nachname, austritt,  mitgliedsnummer from mitglieder WHERE austritt <> ''" +
+				" AND status <> 'ausgetreten'";
+		try {
+			
+			SQLiteDatabase db = this.getWritableDatabase();
+			SQLiteDatabase db2 = this.getWritableDatabase();
+			
+			Cursor c = db.rawQuery(sqlQuery, null);
+			if (c.moveToFirst()) {
+
+				do {
+					String austritt = c.getString(c.getColumnIndex("austritt"));
+					
+					if (austritt.contains(".")) {
+						StringTokenizer tokens = new StringTokenizer(austritt,
+								".");
+						String day = tokens.nextToken();
+						String month = tokens.nextToken();
+						String year = tokens.nextToken();
+						if  (Integer.parseInt(year) < actualYearInt) {
+							
+							String mitgliedsnummer  = c.getString(c.getColumnIndex("mitgliedsnummer"));
+							String Nachname = c.getString(c.getColumnIndex("Nachname"));
+							String update = "UPDATE mitglieder SET status ='ausgetreten' where mitgliedsnummer='"+mitgliedsnummer+"'";
+							Log.e("update",""+update);
+							Log.e("austritt",""+austritt);
+							Log.e("Nachname",""+Nachname);
+							db2.execSQL(update);
+		
+						}
+
+					}
+					
+					
+					
+					
+				} while (c.moveToNext());
+			}
+			db.close();
+			db2.close();
+			
+		} catch (SQLiteException e) {
+
+			return false;
+
+		}
+		return true;
+
+	}
+	public String getBic(String branchcode) {
+		try {
+			SQLiteDatabase db = this.getWritableDatabase();
+			String blzQuery = "SELECT BIC from BLZ WHERE Bankleitzahl ='"+branchcode+"'";
+			Cursor d = db.rawQuery(blzQuery, null);
+			String bic = "";
+			if (d.moveToFirst()) {
+				
+					bic = d.getString(d.getColumnIndex("BIC"));
+				
+			}
+			d.close();
+			
+			
+			return bic;
+		
+		} catch (SQLiteException e) {
+	
+			return "";
+	
+		}
+		
+		
+	}
+	public boolean createbics() throws IOException {
+		String sqlSelectQuery = "SELECT blz,mitgliedsnummer FROM mitglieder where status <> 'ausgetreten'";
+		String sqlUpdateQuery = "UPDATE mitglieder SET bic ='";
 		try {
 			SQLiteDatabase db = this.getWritableDatabase();
 			SQLiteDatabase db2 = this.getWritableDatabase();
@@ -1233,23 +1661,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 			if (c.moveToFirst()) {
 				do {
-					String accountno = c.getString(c.getColumnIndex("konto"))
-							.trim();
-					accountno = accountno.replaceAll(" ", "");
+
 					String branchcode = c.getString(c.getColumnIndex("blz"))
 							.trim();
 					branchcode = branchcode.replaceAll(" ", "");
-					accountno = ("0000000000" + accountno).substring(accountno
-							.length());
-					branchcode = ("00000000" + branchcode).substring(branchcode
-							.length());
-					Integer checksum = MainActivity.ChecksumIBAN(accountno,
-							branchcode);
-					String checksumFormatted = String.format("%02d", checksum);
-					String iban = "DE" + checksumFormatted + branchcode
-							+ accountno;
-					// Log.e("mliste",""+iban);
-					db2.execSQL(sqlUpdateQuery + iban
+					
+					String bic = getBic(branchcode);
+					//Log.e("getBicfor"+c.getString(c.getColumnIndex("mitgliedsnummer"))+" / "+branchcode, "BIC:"+bic);
+					
+						db2.execSQL(sqlUpdateQuery + bic
 							+ "' where mitgliedsnummer='"
 							+ c.getString(c.getColumnIndex("mitgliedsnummer"))
 							+ "'");
@@ -1269,9 +1689,86 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		return true;
 	}
 
-	public boolean backupDataBase() throws IOException {
-		// Log.e("MLISTE", "+++ backupDataBase +++");
+	public boolean createibans() throws IOException {
+		String sqlSelectQuery = "SELECT * FROM mitglieder where status <> 'ausgetreten'";
+		String sqlUpdateQuery = "UPDATE mitglieder SET iban ='";
+		String sqlUpdateQueryAcc = "UPDATE mitglieder SET konto ='";
+		try {
+			SQLiteDatabase db = this.getWritableDatabase();
+			SQLiteDatabase db2 = this.getWritableDatabase();
+			Cursor c = db.rawQuery(sqlSelectQuery, null);
 
+			if (c.moveToFirst()) {
+				do {
+					String accountno = c.getString(c.getColumnIndex("konto"))
+							.trim();
+					String name = c.getString(c.getColumnIndex("Nachname")).trim();
+					accountno = accountno.replaceAll(" ", "");
+					String branchcode = c.getString(c.getColumnIndex("blz"))
+							.trim();
+					branchcode = branchcode.replaceAll(" ", "");
+					
+					String badBank[] = {"20040000", "20070000" ,"76026000", "20070024","20070024","20041111","20041155","20041133"};
+					
+					for (int i = 0; i < badBank.length; i++) 
+				    {
+
+				        if (branchcode.equals(badBank[i]) && accountno.length() < 9) {
+				        	accountno += "00";
+				        	Log.e("badBank:", ""+ badBank[i]);
+				        	Log.e("bAccount:", ""+ accountno);
+				        	Log.e("Name:", ""+ name);
+				        	
+				        	if (!accountno.equals("00")) {
+								db2.execSQL(sqlUpdateQueryAcc + accountno
+										+ "' where mitgliedsnummer='"
+										+ c.getString(c.getColumnIndex("mitgliedsnummer"))
+										+ "'");
+										
+								}
+				        	
+				        	
+				        	break;
+				        }
+
+				    }
+					
+					accountno = ("0000000000" + accountno).substring(accountno
+							.length());
+					branchcode = ("00000000" + branchcode).substring(branchcode
+							.length());
+					
+					if (!accountno.equals("0000000000")) {
+						Integer checksum = MainActivity.ChecksumIBAN(accountno,
+								branchcode);
+						String checksumFormatted = String.format("%02d", checksum);
+						String iban = "DE" + checksumFormatted + branchcode
+								+ accountno;
+						// Log.e("mliste",""+iban);
+						
+						db2.execSQL(sqlUpdateQuery + iban
+								+ "' where mitgliedsnummer='"
+								+ c.getString(c.getColumnIndex("mitgliedsnummer"))
+								+ "'");
+							
+					}
+				} while (c.moveToNext());
+			}
+
+			c.close();
+			db.close();
+			db2.close();
+
+		} catch (SQLiteException e) {
+
+			return false;
+
+		}
+
+		return true;
+	}
+
+	public boolean backupDataBase() throws IOException {
 		try {
 
 			SimpleDateFormat dateFormat = new SimpleDateFormat(
@@ -1298,15 +1795,48 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			myInput.close();
 			return true;
 		} catch (IOException e) {
-			Log.e("MLISTE", "+++ ERROR backupDataBase +++" + e);
+			//Log.e("MLISTE", "+++ ERROR backupDataBase +++" + e);
 			return false;
+		}
+
+	}
+
+	public String backupDataBaseOnline() throws IOException {
+		try {
+
+			SimpleDateFormat dateFormat = new SimpleDateFormat(
+					"ddMMyyyyHHmmss", Locale.GERMANY);
+			File sdCard = Environment.getExternalStorageDirectory();
+			File dir = new File(sdCard.getAbsolutePath() + "/mliste");
+			dir.mkdir();
+			String inFileName = DB_PATH + DB_NAME;
+			String outFilename = dateFormat.format(new Date()) + "_" + DB_NAME;
+
+			File f = new File(dir, outFilename);
+			f.createNewFile();
+			InputStream myInput = new FileInputStream(inFileName);
+			OutputStream myOutput = new FileOutputStream(f);
+
+			byte[] buffer = new byte[1024];
+			int length;
+			while ((length = myInput.read(buffer)) > 0) {
+				myOutput.write(buffer, 0, length);
+			}
+
+			myOutput.flush();
+			myOutput.close();
+			myInput.close();
+			return outFilename;
+		} catch (IOException e) {
+			//Log.e("MLISTE", "+++ ERROR backupDataBase +++" + e);
+			return "";
 		}
 
 	}
 
 	public String[] ReadAverageAlterFromDB() {
 
-		ArrayList temp_array = new ArrayList();
+		ArrayList<String> temp_array = new ArrayList<String>();
 		String[] number_array = new String[0];
 
 		String sqlQuery = "select sum(Lebensalter)/count(Lebensalter) as average_age from mitglieder where status <>'ausgetreten'";
@@ -1328,7 +1858,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			db.close();
 		} catch (SQLiteException e) {
 
-			Log.e("MLISTE", "+++ readData +++" + e);
+			//Log.e("MLISTE", "+++ readData +++" + e);
 		}
 
 		number_array = (String[]) temp_array.toArray(number_array);
@@ -1370,6 +1900,23 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	 * empty database in the system folder, from where it can be accessed and
 	 * handled. This is done by transfering bytestream.
 	 * */
+	
+	public void copyDataBase(String path) throws IOException {
+		String outFileName = DB_PATH + DB_NAME;
+		File f_path = new File(path);
+		InputStream  myInput = null;
+		myInput = new BufferedInputStream(new FileInputStream(f_path));
+		OutputStream myOutput = new FileOutputStream(outFileName);
+		byte[] buffer = new byte[1024];
+		int length;
+		while ((length = myInput.read(buffer)) > 0) {
+			myOutput.write(buffer, 0, length);
+		}
+		myOutput.flush();
+		myOutput.close();
+		myInput.close();
+	}
+	
 	private void copyDataBase() throws IOException {
 		// Log.e("MLISTE", "+++ copyDataBase +++");
 

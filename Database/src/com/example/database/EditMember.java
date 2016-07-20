@@ -14,6 +14,7 @@ import android.app.Activity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -29,7 +30,8 @@ public class EditMember extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_edit_member);
 		id = getIntent().getStringExtra("query");
-
+		 getWindow().setSoftInputMode(
+				    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
 		if (!id.equals("")) {
 			String[] result_array;
 			result_array = id.split(",");
@@ -278,6 +280,7 @@ public class EditMember extends Activity {
 					Field f;
 					try {
 						String key = header.get(i).toString();
+						Log.e("db",""+key);
 						f = clazz.getField(key);
 						int id = 0;
 						try {

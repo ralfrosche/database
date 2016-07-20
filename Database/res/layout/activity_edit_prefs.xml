@@ -571,7 +571,94 @@
                     android:gravity="top|center_vertical"
                     android:inputType="text" />
             </TableRow>
+	 <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dip"
+                android:background="#FF00" />
 
+            <TableRow
+                android:id="@+id/tableRow23"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:gravity="fill_horizontal" >
+
+                <TextView
+                    android:id="@+id/textView23"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"
+                    android:layout_weight="0"
+                    android:text="Update Server:"
+                    android:textAppearance="?android:attr/textAppearanceLarge"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/update_server"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"
+                    android:layout_marginRight="5dp"
+                    android:layout_weight="1"
+                    android:gravity="top|center_vertical"
+                    android:inputType="text" />
+            </TableRow>
+            	 <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dip"
+                android:background="#FF00" />
+
+            <TableRow
+                android:id="@+id/tableRow24"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:gravity="fill_horizontal" >
+
+                <TextView
+                    android:id="@+id/textView24"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"
+                    android:layout_weight="0"
+                    android:text="User:"
+                    android:textAppearance="?android:attr/textAppearanceLarge"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/update_user"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"
+                    android:layout_marginRight="5dp"
+                    android:layout_weight="1"
+                    android:gravity="top|center_vertical"
+                    android:inputType="text" />
+            </TableRow>
+                        	 <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dip"
+                android:background="#FF00" />
+
+            <TableRow
+                android:id="@+id/tableRow22"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:gravity="fill_horizontal" >
+
+                <TextView
+                    android:id="@+id/textView22"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"
+                    android:layout_weight="0"
+                    android:text="Password:"
+                    android:textAppearance="?android:attr/textAppearanceLarge"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/update_password"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"
+                    android:layout_marginRight="5dp"
+                    android:layout_weight="1"
+                    android:inputType="textPassword" 
+                    android:gravity="top|center_vertical"
+              />
+            </TableRow>
             <View
                 android:layout_width="fill_parent"
                 android:layout_height="1dip"
