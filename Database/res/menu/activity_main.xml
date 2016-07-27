@@ -99,5 +99,6 @@
       <item android:id="@+id/setAbbuchung" android:title="Set alle abbuchen" android:visible="false"></item>
       <item android:id="@+id/OnlineUpdate" android:title="Online Update"></item>
       <item android:id="@+id/OnlineUpload" android:title="Online Upload" android:visible="false"></item>
+      <item android:id="@+id/exportHistory" android:title="Export History" android:visible="false"></item>
   
 </menu>

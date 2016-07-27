@@ -61,7 +61,7 @@ public final class R {
         public static final int Telefon=0x7f0c0016;
         public static final int Vorname=0x7f0c0007;
         public static final int abbuchung=0x7f0c0064;
-        public static final int action_settings=0x7f0c00cd;
+        public static final int action_settings=0x7f0c00ce;
         public static final int add_member=0x7f0c00b9;
         public static final int addressList=0x7f0c00c1;
         public static final int austritt=0x7f0c0025;
@@ -91,6 +91,7 @@ public final class R {
         public static final int executeSQL=0x7f0c00c6;
         public static final int exportDB=0x7f0c00ba;
         public static final int exportExcel=0x7f0c00bb;
+        public static final int exportHistory=0x7f0c00cd;
         public static final int fremdkonto=0x7f0c0034;
         public static final int glaeubigerid=0x7f0c0090;
         public static final int helpView=0x7f0c00a2;

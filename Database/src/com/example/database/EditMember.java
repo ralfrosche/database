@@ -24,6 +24,7 @@ import android.widget.Spinner;
 public class EditMember extends Activity {
 	private DatabaseHelper myDbHelper = new DatabaseHelper(this);
 	String id = "";
+	private Map<String, String> shadowData = new HashMap<String, String>();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +48,7 @@ public class EditMember extends Activity {
 			myDbHelper.createDataBase();
 			data = myDbHelper.getRecord("mitglieder", id, "mitgliedsnummer");
 			if (data.size() > 0) {
+				shadowData = data;
 
 				for (Entry<String, String> e : data.entrySet()) {
 					String key = e.getKey();
@@ -280,7 +282,6 @@ public class EditMember extends Activity {
 					Field f;
 					try {
 						String key = header.get(i).toString();
-						Log.e("db",""+key);
 						f = clazz.getField(key);
 						int id = 0;
 						try {
@@ -469,7 +470,8 @@ public class EditMember extends Activity {
 					}
 
 				}
-				myDbHelper.update("mitglieder", update, id, "mitgliedsnummer",
+
+				myDbHelper.update("mitglieder", update, shadowData, id, "mitgliedsnummer",
 						true);
 				MainActivity.updateView = true;
 				finish();

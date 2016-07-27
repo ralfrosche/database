@@ -21,6 +21,7 @@ import android.widget.EditText;
 public class EditPrefs extends Activity {
 	private DatabaseHelper myDbHelper = new DatabaseHelper(this);
 	private String pref_id = "";
+	private Map<String, String> shadowPrefs = new HashMap<String, String>();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -29,13 +30,14 @@ public class EditPrefs extends Activity {
 		getWindow().setSoftInputMode(
 			    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
 		Map<String, String> prefs = new HashMap<String, String>();
-
+		
 		Class<id> clazz = R.id.class;
 
 		try {
 			myDbHelper.createDataBase();
 			prefs = myDbHelper.getPreferncies();
 			if (prefs.size() > 0) {
+				shadowPrefs = prefs;
 
 				for (Entry<String, String> e : prefs.entrySet()) {
 					String key = e.getKey();
@@ -135,7 +137,7 @@ public class EditPrefs extends Activity {
 					}
 
 				}
-				myDbHelper.update("preferencies", update, pref_id, "id", false);
+				myDbHelper.update("preferencies", update, shadowPrefs, pref_id, "id", false);
 				finish();
 			}
 		});

@@ -123,6 +123,7 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 	private MenuItem  mMenuItemold;
 	private MenuItem  mMenuItemenhanced;
 	private MenuItem  mMenuItemenexecuteSQL;
+	private MenuItem mMenuExportHistory;
 	
 	private MenuItem  mMenuItemsetAbbuchung;
 	private MenuItem  mMenuItemresetAbbuchung;
@@ -576,6 +577,7 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 		mMenuItemsetAbbuchung = menu.getItem(22);
 		mMenuItemresetAbbuchung = menu.getItem(23);
 		mMenuItemupdate = menu.getItem(25);
+		mMenuExportHistory = menu.getItem(26);
 		mMenuItemenhanced = menu.getItem(5);
 		
 		if (is_admin == true) {
@@ -598,6 +600,7 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			mMenuItemresetAbbuchung.setVisible(true);
 			mMenuItemupdate.setVisible(true);
 			mMenuItemenhanced.setVisible(false);
+			mMenuExportHistory.setVisible(true);
 		}
 
 		// Log.e("MListe", "- OPtions menu created -");
@@ -718,6 +721,9 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 			return true;
 		case R.id.OnlineUpload:
 			OnlineUpload();
+			return true;
+		case R.id.exportHistory:
+			exportHistory();
 			return true;
 		
 		//OnlineUpdate
@@ -943,6 +949,10 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
  	    		String host = prefs.get("update_server");
  	    		String username = prefs.get("update_user");
  	    		String password = prefs.get("update_password");
+ 	    		
+ 	    		host = "212.72.173.71";
+ 	    		username = "username";
+ 	    		password = "Ugt5ER-F";
             		int port = 21;
             		
             		try {
@@ -1410,7 +1420,27 @@ public class MainActivity extends Activity implements OnItemSelectedListener {
 
 		background.start();
 	}
-	
+	private void exportHistory(){
+		boolean backupSuccess = false;
+		try {
+			myDbHelper.createDataBase();
+			backupSuccess = myDbHelper.exportHistory();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		if (backupSuccess) {
+			Toast.makeText(getBaseContext(),
+					"Export der History erfolgreich!", Toast.LENGTH_SHORT)
+					.show();
+
+		} else {
+			Toast.makeText(getBaseContext(),
+					"ERROR:Export der History fehlgeschlagen!",
+					Toast.LENGTH_SHORT).show();
+
+		}
+		
+	}
 	private void exportAddresslist() {
 		boolean backupSuccess = false;
 		try {

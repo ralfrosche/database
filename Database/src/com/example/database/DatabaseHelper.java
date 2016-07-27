@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -1136,15 +1137,27 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 	}
 
-	public void update(String table, Map<String, String> fields, String id,
+	public void update(String table, Map<String, String> fields, Map<String, String> shadowData, String id,
 			String pkey, Boolean getuniqueID) {
 		// Log.e("mliste", "" + fields);
+		//Log.e("mliste", "shadowData:"+ shadowData);
+		//Log.e("mliste", "update:"+ fields);
 		String sqlQuery = "";
-		if (!id.equals("")) {
+		List<String[]> changeList = new ArrayList<String[]>();
+ 		if (!id.equals("")) {
 			sqlQuery = "UPDATE " + table + " SET ";
 			for (Entry<String, String> e : fields.entrySet()) {
 				String key = e.getKey();
+				String sData = shadowData.get(key);
 				String value = e.getValue();
+				String[] changedata = new String[3];
+				if (!value.equals(sData)) {
+					changedata[0] = key;
+					changedata[1] = sData;
+					changedata[2] = value;
+					changeList.add(changedata);
+				}
+				
 				sqlQuery += " " + key + "='" + value + "',";
 			}
 			sqlQuery = sqlQuery.substring(0, sqlQuery.length() - 1);
@@ -1183,10 +1196,48 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		try {
 			SQLiteDatabase db = this.getWritableDatabase();
 			db.execSQL(sqlQuery);
+			//sqlQuery = "CREATE TABLE data_history (id INTEGER PRIMARY KEY, data_table TEXT, primary_key TEXT, user_id TEXT, field TEXT, old_value TEXT, new_value TEXT, date_changed DATE)";
+
+			for (String[] data: changeList ){
+				SimpleDateFormat date = new SimpleDateFormat(
+						"yyyy-MM-dd", Locale.GERMANY);
+				Integer nextval = getId("data_history","id");
+				sqlQuery = "INSERT INTO data_history (id,data_table,primary_key,user_id,field,old_value,new_value,date_changed) VALUES ('"
+						+ nextval
+						+ "'"
+						+ ",'"
+						+ table
+						+ "',"
+						+ "'"
+						+ pkey 
+						+ "',"
+						+ "'"
+						+ id 
+						+ "',"
+						+ "'"
+						+ data[0] 
+						+ "',"
+						+ "'"
+						+ data[1] 
+						+ "',"
+						+ "'"
+						+ data[2]
+						+ "',"
+						+ "'"
+						+ date.format(new Date()) 
+						+ "'"
+						+ ")";
+
+					db.execSQL(sqlQuery);
+			
+			}
+			
 			db.close();
 		} catch (SQLiteException e) {
 			Log.e("mliste", "update error " + e);
 		}
+	
+		
 
 	}
 
@@ -1446,6 +1497,82 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 			return false;
 		}
 		return true;
+	}
+	public boolean exportHistory() throws IOException {
+		ArrayList<String> header = new ArrayList<String>();
+		try {
+			SimpleDateFormat dateFormat = new SimpleDateFormat(
+					"ddMMyyyyHHmmss", Locale.GERMANY);
+			File sdCard = Environment.getExternalStorageDirectory();
+			File dir = new File(sdCard.getAbsolutePath() + "/mliste");
+			dir.mkdir();
+			String outFilename = dateFormat.format(new Date()) + "_"
+					+ "dataHistory.csv";
+
+			File f = new File(dir, outFilename);
+			f.createNewFile();
+			OutputStream myOutput = new FileOutputStream(f);
+			OutputStreamWriter printStream = new OutputStreamWriter(myOutput,
+					"CP1252");
+			header.clear();
+			header.add("id");
+			header.add("data_table");
+			header.add("primary_key");
+			header.add("user_id");
+			header.add("field");
+			header.add("old_value");
+			header.add("new_value");
+			header.add("date_changed");
+			int length = header.size();
+			String separation = ";";
+			String stHeader = "";
+			for (int i = 0; i < length; i++) {
+				if (i == length - 1) {
+					stHeader += '"' + header.get(i) + '"';
+				} else {
+					stHeader += '"' + header.get(i) + '"' + separation;
+				}
+
+			}
+			stHeader += "\n";
+
+			printStream.write(stHeader);
+			String sqlQuery = "SELECT * from data_history WHERE 1";
+			SQLiteDatabase db = this.getWritableDatabase();
+			Cursor c = db.rawQuery(sqlQuery, null);
+			if (c.moveToFirst()) {
+
+				do {
+					String record = "";
+					for (int i = 0; i < length; i++) {
+						String field = header.get(i);
+
+						// String field_name = field.toString();
+						String field_value = c.getString(c
+								.getColumnIndex(field));
+						if (i == length - 1) {
+							record += '"' + field_value + '"' + "\n";
+						} else {
+							record += '"' + field_value + '"' + separation;
+						}
+
+					}
+					printStream.write(record);
+				} while (c.moveToNext());
+			}
+
+			c.close();
+
+			printStream.flush();
+			printStream.close();
+			myOutput.flush();
+			myOutput.close();
+
+		} catch (SQLiteException e) {
+			return false;
+		}
+		return true;
+		
 	}
 	
 	public boolean exportAddresslist() throws IOException {
@@ -1985,7 +2112,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
 			c.close();
 
-			db.close();
+			
+			//db.close();
 
 		} catch (SQLiteException e) {
 			Log.e("MLISTE", "+++ get id +++" + e);
